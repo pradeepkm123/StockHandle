@@ -13,9 +13,9 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
-const BRANDS_API = 'http://localhost:5000/api/brands';
-const CATEGORIES_API = 'http://localhost:5000/api/categories';
-const SUBCATEGORIES_API = 'http://localhost:5000/api/subcategories';
+const BRANDS_API = 'https://stockhandle.onrender.com/api/brands';
+const CATEGORIES_API = 'https://stockhandle.onrender.com/api/categories';
+const SUBCATEGORIES_API = 'https://stockhandle.onrender.com/api/subcategories';
 
 const AddProduct = ({
   open,
