@@ -238,7 +238,7 @@ const StockOutward = () => {
         storeName: formData.storeName,
       };
       await axios.post('https://stockhandle.onrender.com/api/dispatch', payload);
-      const res = await axios.get('http://localhost:5000/api/products');
+      const res = await axios.get('https://stockhandle.onrender.com/api/products');
       const products = res.data;
       const product = products.find((p) => p.model === formData.modelNo);
       if (product) {
