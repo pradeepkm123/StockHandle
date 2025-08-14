@@ -7,7 +7,7 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
-const API = 'http://localhost:5000/api';
+const API = 'https://stockhandle.onrender.com/api';
 
 const InventoryDashboard = () => {
   const [selectedStore, setSelectedStore] = useState(null);
