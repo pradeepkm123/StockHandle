@@ -41,7 +41,7 @@ const Inventory = () => {
 
   const fetchInventoryData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/inventory');
+      const response = await fetch('https://stockhandle.onrender.com/api/inventory');
       if (!response.ok) throw new Error('Failed to fetch data');
       const data = await response.json();
       setInventoryData(data);
@@ -53,7 +53,7 @@ const Inventory = () => {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/locations');
+      const response = await fetch('https://stockhandle.onrender.com/api/locations');
       if (!response.ok) throw new Error('Failed to fetch locations');
       const data = await response.json();
       setLocations(data);
@@ -177,13 +177,13 @@ const Inventory = () => {
     try {
       let response;
       if (editIndex !== null) {
-        response = await fetch(`http://localhost:5000/api/inventory/${inventoryData[editIndex]._id}`, {
+        response = await fetch(`https://stockhandle.onrender.com/api/inventory/${inventoryData[editIndex]._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
         });
       } else {
-        response = await fetch('http://localhost:5000/api/inventory', {
+        response = await fetch('https://stockhandle.onrender.com/api/inventory', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
@@ -230,7 +230,7 @@ const Inventory = () => {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/inventory/${inventoryData[deleteIndex]._id}`, {
+      const response = await fetch(`https://stockhandle.onrender.com/api/inventory/${inventoryData[deleteIndex]._id}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Failed to delete data');
