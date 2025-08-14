@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
-const API = 'http://localhost:5000';
+const API = 'https://stockhandle.onrender.com';
 
 const statusBadgeStyle = (isActive) => ({
   display: 'inline-flex',
