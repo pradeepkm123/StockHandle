@@ -18,7 +18,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Fav from '../assets/img/fav.png';
 
 const defaultTheme = createTheme();
-const API = 'http://localhost:5000/api';
+const API = 'https://stockhandle.onrender.com/api';
 
 function Login() {
   const { login } = useUser();
