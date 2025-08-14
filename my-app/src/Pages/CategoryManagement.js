@@ -48,7 +48,7 @@ const CategoryManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch('https://stockhandle.onrender.com/api/categories');
       const data = await response.json();
       console.log('Fetched categories:', data);
       setCategories(data);
@@ -108,14 +108,14 @@ const CategoryManagement = () => {
 
     try {
       if (selectedCategory) {
-        const response = await fetch(`http://localhost:5000/api/categories/${selectedCategory._id}`, {
+        const response = await fetch(`https://stockhandle.onrender.com/api/categories/${selectedCategory._id}`, {
           method: 'PUT',
           body: formDataToSend,
         });
         const data = await response.json();
         setCategories(categories.map(category => (category._id === selectedCategory._id ? data : category)));
       } else {
-        const response = await fetch('http://localhost:5000/api/categories', {
+        const response = await fetch('https://stockhandle.onrender.com/api/categories', {
           method: 'POST',
           body: formDataToSend,
         });
@@ -141,7 +141,7 @@ const CategoryManagement = () => {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/categories/${id}`, {
+      await fetch(`https://stockhandle.onrender.com/api/categories/${id}`, {
         method: 'DELETE',
       });
       setCategories(categories.filter(category => category._id !== id));
@@ -167,7 +167,7 @@ const CategoryManagement = () => {
   const handleDeleteSelected = async () => {
     try {
       await Promise.all(selectedCategories.map(id =>
-        fetch(`http://localhost:5000/api/categories/${id}`, {
+        fetch(`https://stockhandle.onrender.com/api/categories/${id}`, {
           method: 'DELETE',
         })
       ));
@@ -248,7 +248,7 @@ const CategoryManagement = () => {
                 <TableCell>{category.name}</TableCell>
                 <TableCell>{formatDate(category.createdOn)}</TableCell>
                 <TableCell>
-                  {category.image && <img src={`http://localhost:5000/${category.image}`} alt="Category" style={{ width: 50, height: 50 }} />}
+                  {category.image && <img src={`https://stockhandle.onrender.com/${category.image}`} alt="Category" style={{ width: 50, height: 50 }} />}
                 </TableCell>
                 <TableCell>
                   <Badge color={category.status ? 'success' : 'error'} badgeContent={category.status ? 'Active' : 'Inactive'} />
@@ -322,7 +322,7 @@ const CategoryManagement = () => {
             {formData.image && (
               <Box sx={{ mt: 2, textAlign: 'center' }}>
                 <img
-                  src={formData.image instanceof File ? URL.createObjectURL(formData.image) : `http://localhost:5000/${formData.image}`}
+                  src={formData.image instanceof File ? URL.createObjectURL(formData.image) : `https://stockhandle.onrender.com/${formData.image}`}
                   alt="Preview"
                   style={{ maxWidth: '100%', height: 'auto' }}
                 />
