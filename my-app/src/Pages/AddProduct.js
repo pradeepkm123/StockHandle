@@ -69,7 +69,7 @@ const AddProduct = ({
       }
       // fallback without helper: keep it as-is or prefix uploads
       if (/^https?:\/\//i.test(img) || img.startsWith('/uploads/')) return img;
-      return `http://localhost:5000/uploads/${img}`;
+      return `https://stockhandle.onrender.com/uploads/${img}`;
     }
 
     // 3) Otherwise fallback
