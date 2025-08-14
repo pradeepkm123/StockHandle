@@ -48,7 +48,7 @@ const SubCategoryManagement = () => {
 
   const fetchSubCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/subcategories');
+      const response = await fetch('https://stockhandle.onrender.com/api/subcategories');
       const data = await response.json();
       setSubCategories(data);
     } catch (error) {
@@ -108,14 +108,14 @@ const SubCategoryManagement = () => {
 
     try {
       if (selectedSubCategory) {
-        const response = await fetch(`http://localhost:5000/api/subcategories/${selectedSubCategory._id}`, {
+        const response = await fetch(`https://stockhandle.onrender.com/api/subcategories/${selectedSubCategory._id}`, {
           method: 'PUT',
           body: formDataToSend,
         });
         const data = await response.json();
         setSubCategories(subCategories.map(subCategory => (subCategory._id === selectedSubCategory._id ? data : subCategory)));
       } else {
-        const response = await fetch('http://localhost:5000/api/subcategories', {
+        const response = await fetch('https://stockhandle.onrender.com/api/subcategories', {
           method: 'POST',
           body: formDataToSend,
         });
@@ -141,7 +141,7 @@ const SubCategoryManagement = () => {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/subcategories/${id}`, {
+      await fetch(`https://stockhandle.onrender.com/api/subcategories/${id}`, {
         method: 'DELETE',
       });
       setSubCategories(subCategories.filter(subCategory => subCategory._id !== id));
@@ -290,7 +290,7 @@ const SubCategoryManagement = () => {
             {formData.image && (
               <Box sx={{ mt: 2, textAlign: 'center' }}>
                 <img
-                  src={formData.image instanceof File ? URL.createObjectURL(formData.image) : `http://localhost:5000/${formData.image}`}
+                  src={formData.image instanceof File ? URL.createObjectURL(formData.image) : `https://stockhandle.onrender.com/${formData.image}`}
                   alt="Preview"
                   style={{ maxWidth: '100%', height: 'auto' }}
                 />
