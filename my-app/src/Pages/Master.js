@@ -18,8 +18,8 @@ import CategoryManagement from './CategoryManagement';
 import SubCategoryManagement from './SubCategoryManagement';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
-const FILE_HOST = 'http://localhost:5000';
+const API_URL = 'https://stockhandle.onrender.com/api';
+const FILE_HOST = 'https://stockhandle.onrender.com';
 
 const getImageUrl = (img) => {
   if (!img) return '/no-image.png';
