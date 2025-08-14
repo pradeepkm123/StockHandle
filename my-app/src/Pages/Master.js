@@ -19,7 +19,7 @@ import SubCategoryManagement from './SubCategoryManagement';
 import axios from 'axios';
 
 const API_URL = 'https://stockhandle.onrender.com/api';
-// const FILE_HOST = 'https://stockhandle.onrender.com';
+const FILE_HOST = 'https://stockhandle.onrender.com';
 
 const getImageUrl = (img) => {
   if (!img) return '/no-image.png';
