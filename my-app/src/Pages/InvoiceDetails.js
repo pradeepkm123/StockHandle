@@ -233,12 +233,12 @@ const InvoiceDetails = () => {
         </Box>
         <Divider sx={{ my: 2, borderStyle: 'dotted', borderColor: 'gray', borderWidth: 1 }} />
         <Box mt={4} display="flex" justifyContent="space-between">
-          <Box>
-            <Typography variant="subtitle2">Terms and Conditions</Typography>
-            <Typography variant="body2">Please pay within 15 days from the date of invoice. Overdue interest @14% will be charged on delayed payments.</Typography>
-            <Typography variant="subtitle2" mt={2}>Notes</Typography>
-            <Typography variant="body2">Please quote invoice number when remitting funds.</Typography>
-          </Box>
+          // <Box>
+          //   <Typography variant="subtitle2">Terms and Conditions</Typography>
+          //   <Typography variant="body2">Please pay within 15 days from the date of invoice. Overdue interest @14% will be charged on delayed payments.</Typography>
+          //   <Typography variant="subtitle2" mt={2}>Notes</Typography>
+          //   <Typography variant="body2">Please quote invoice number when remitting funds.</Typography>
+          // </Box>
           <Box textAlign="right">
             {/* <img src="/signature.png" alt="Signature" height={40} /> */}
             <Typography><b>{warehouseDetails.contactPerson}</b></Typography>
