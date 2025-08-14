@@ -148,7 +148,7 @@ const StockInward = () => {
 
     const fetchProducts = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/products');
+            const res = await axios.get('https://stockhandle.onrender.com/api/products');
             const products = res.data;
             setProductList(products);
             setProductOptions(products.map(p => ({ value: p.model, label: p.model })));
@@ -160,7 +160,7 @@ const StockInward = () => {
 
     const fetchLocations = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/locations');
+            const res = await axios.get('https://stockhandle.onrender.com/api/locations');
             setLocationOptions(res.data);
         } catch (error) {
             console.error('Error fetching locations:', error);
@@ -233,7 +233,7 @@ const StockInward = () => {
                 });
             }
 
-            await axios.post('http://localhost:5000/api/inventory', {
+            await axios.post('https://stockhandle.onrender.com/api/inventory', {
                 modelNo: formData.modelNo,
                 location: formData.location,
                 quantity: formData.quantity,
