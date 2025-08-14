@@ -227,7 +227,7 @@ const StockInward = () => {
             const product = productList.find(p => p.model === formData.modelNo);
             if (product) {
                 const updatedReorder = (product.reorderLevel || 0) + Number(formData.quantity);
-                await axios.put(`http://localhost:5000/api/products/${product._id}`, {
+                await axios.put(`https://stockhandle.onrender.com/api/products/${product._id}`, {
                     ...product,
                     reorderLevel: updatedReorder,
                 });
