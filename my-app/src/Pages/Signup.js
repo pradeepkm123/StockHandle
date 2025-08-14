@@ -44,7 +44,7 @@ export default function SignUpDesign() {
     validationSchema: SignUpSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        const response = await fetch('http://localhost:5000/api/users/signup', {
+        const response = await fetch('https://stockhandle.onrender.com/api/users/signup', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
