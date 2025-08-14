@@ -6,7 +6,7 @@ const LowStockProducts = () => {
   useEffect(() => {
     const fetchLowStock = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/products');
+        const res = await fetch('https://stockhandle.onrender.com/api/products');
         const data = await res.json();
 
         const filtered = data.filter(
@@ -54,7 +54,7 @@ const LowStockProducts = () => {
               }}>
                 {product.productImage ? (
                   <img
-                    src={`http://localhost:5000/uploads/${product.productImage}`}
+                    src={`https://stockhandle.onrender.com/uploads/${product.productImage}`}
                     alt={product.model || 'Product'}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
