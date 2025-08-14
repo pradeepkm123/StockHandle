@@ -45,7 +45,7 @@ const SalesPerson = () => {
 
   const fetchSalesPersons = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/salesPersons');
+      const response = await axios.get('https://stockhandle.onrender.com/api/salesPersons');
       setSalesPersons(response.data);
     } catch (error) {
       console.error('Error fetching sales persons:', error);
@@ -80,11 +80,11 @@ const SalesPerson = () => {
     try {
       if (editIndex !== null) {
         // Update existing sales person
-        await axios.put(`http://localhost:5000/api/salesPersons/${salesPersons[editIndex]._id}`, formData);
+        await axios.put(`https://stockhandle.onrender.com/api/salesPersons/${salesPersons[editIndex]._id}`, formData);
         enqueueSnackbar('Sales person updated successfully!', { variant: 'success' });
       } else {
         // Add new sales person
-        await axios.post('http://localhost:5000/api/salesPersons', formData);
+        await axios.post('https://stockhandle.onrender.com/api/salesPersons', formData);
         enqueueSnackbar('Sales person added successfully!', { variant: 'success' });
       }
       fetchSalesPersons();
@@ -119,7 +119,7 @@ const SalesPerson = () => {
 
   const handleDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/api/salesPersons/${salesPersons[deleteIndex]._id}`);
+      await axios.delete(`https://stockhandle.onrender.com/api/salesPersons/${salesPersons[deleteIndex]._id}`);
       enqueueSnackbar('Sales person deleted successfully!', { variant: 'success' });
       fetchSalesPersons();
       handleDeleteConfirmClose();
