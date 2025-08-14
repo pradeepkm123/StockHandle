@@ -59,7 +59,7 @@ const Location = () => {
 
     const fetchLocations = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/locations');
+            const response = await axios.get('https://stockhandle.onrender.com/api/locations');
             setLocations(response.data);
         } catch (error) {
             enqueueSnackbar('Error fetching locations!', { variant: 'error' });
@@ -98,10 +98,10 @@ const Location = () => {
     const handleSave = async () => {
         try {
             if (editId !== null) {
-                await axios.put(`http://localhost:5000/api/locations/${editId}`, formData);
+                await axios.put(`https://stockhandle.onrender.com/api/locations/${editId}`, formData);
                 enqueueSnackbar('Location updated successfully!', { variant: 'success' });
             } else {
-                await axios.post('http://localhost:5000/api/locations', formData);
+                await axios.post('https://stockhandle.onrender.com/api/locations', formData);
                 enqueueSnackbar('Location added successfully!', { variant: 'success' });
             }
             fetchLocations();
@@ -136,7 +136,7 @@ const Location = () => {
     const handleDelete = async () => {
         try {
             await Promise.all(
-                selected.map((id) => axios.delete(`http://localhost:5000/api/locations/${id}`))
+                selected.map((id) => axios.delete(`https://stockhandle.onrender.com/api/locations/${id}`))
             );
             enqueueSnackbar('Location(s) deleted successfully!', { variant: 'success' });
             fetchLocations();
