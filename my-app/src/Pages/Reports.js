@@ -71,7 +71,7 @@ const Reports = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/categories');
+        const response = await fetch('https://stockhandle.onrender.com/api/categories');
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
@@ -84,7 +84,7 @@ const Reports = () => {
 
     const fetchBrands = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/brands');
+        const response = await fetch('https://stockhandle.onrender.com/api/brands');
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
@@ -101,7 +101,7 @@ const Reports = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const endpoint = activeTab === 'inward' ? 'http://localhost:5000/api/inventory' : 'http://localhost:5000/api/dispatch';
+      const endpoint = activeTab === 'inward' ? 'https://stockhandle.onrender.com/api/inventory' : 'https://stockhandle.onrender.com/api/dispatch';
       try {
         const response = await fetch(endpoint);
         if (!response.ok) {
