@@ -34,7 +34,7 @@ function Invoice() {
   useEffect(() => {
     const fetchDispatches = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/dispatch');
+        const response = await axios.get('https://stockhandle.onrender.com/api/dispatch');
         setDispatches(response.data);
       } catch (error) {
         console.error('Error fetching dispatches:', error);
@@ -58,7 +58,7 @@ function Invoice() {
 
   const handleConfirmDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/api/dispatch/${selectedId}`);
+      await axios.delete(`https://stockhandle.onrender.com/api/dispatch/${selectedId}`);
       setDispatches(dispatches.filter(dispatch => dispatch._id !== selectedId));
     } catch (error) {
       console.error('Error deleting dispatch:', error);
