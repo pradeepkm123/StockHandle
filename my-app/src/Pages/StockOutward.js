@@ -55,7 +55,7 @@ const StockOutward = () => {
 
   const fetchModels = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/products');
+      const res = await axios.get('https://stockhandle.onrender.com/api/products');
       setModels(res.data);
     } catch {
       enqueueSnackbar('Failed to fetch models', { variant: 'error' });
@@ -64,7 +64,7 @@ const StockOutward = () => {
 
   const fetchSalePersons = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/salesPersons');
+      const res = await axios.get('https://stockhandle.onrender.com/api/salesPersons');
       setSalePersons(res.data);
     } catch {
       enqueueSnackbar('Failed to fetch sales persons', { variant: 'error' });
@@ -73,7 +73,7 @@ const StockOutward = () => {
 
   const fetchCustomers = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/customers');
+      const res = await axios.get('https://stockhandle.onrender.com/api/customers');
       setCustomers(res.data);
     } catch {
       enqueueSnackbar('Failed to fetch customers', { variant: 'error' });
@@ -237,13 +237,13 @@ const StockOutward = () => {
         phoneNumber: formData.phoneNumber,
         storeName: formData.storeName,
       };
-      await axios.post('http://localhost:5000/api/dispatch', payload);
+      await axios.post('https://stockhandle.onrender.com/api/dispatch', payload);
       const res = await axios.get('http://localhost:5000/api/products');
       const products = res.data;
       const product = products.find((p) => p.model === formData.modelNo);
       if (product) {
         const updatedReorder = Math.max(0, (product.reorderLevel || 0) - formData.quantity);
-        await axios.put(`http://localhost:5000/api/products/${product._id}`, {
+        await axios.put(`https://stockhandle.onrender.com/api/products/${product._id}`, {
           ...product,
           reorderLevel: updatedReorder,
         });
