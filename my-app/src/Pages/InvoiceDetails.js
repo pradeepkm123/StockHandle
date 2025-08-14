@@ -248,10 +248,10 @@ const InvoiceDetails = () => {
         <Divider sx={{ my: 2, borderStyle: 'dotted', borderColor: 'gray', borderWidth: 0.1 }} />
         <Box textAlign="center">
           <img src={Logo} alt="Logo" height={50} />
-          <Typography variant="body2" mt={1}>
-            Payment Made Via bank transfer / Cheque in the name of Thomas Lawler<br />
-            Bank Name: HDFC Bank | Account Number: 45366287987 | IFSC: HDFCO018159
-          </Typography>
+          // <Typography variant="body2" mt={1}>
+          //   Payment Made Via bank transfer / Cheque in the name of Thomas Lawler<br />
+          //   Bank Name: HDFC Bank | Account Number: 45366287987 | IFSC: HDFCO018159
+          // </Typography>
         </Box>
       </Box>
       <Box mt={2} textAlign="center">
