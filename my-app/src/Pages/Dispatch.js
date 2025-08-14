@@ -66,7 +66,7 @@ const Dispatch = () => {
 
   const fetchInvoices = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/invoices');
+      const response = await axios.get('https://stockhandle.onrender.com/api/invoices');
       setInvoices(response.data);
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -76,7 +76,7 @@ const Dispatch = () => {
 
   const fetchModels = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/inventory');
+      const response = await axios.get('https://stockhandle.onrender.com/api/inventory');
       const data = Array.isArray(response.data) ? response.data : response.data.models || [];
       setModels(data);
     } catch (error) {
@@ -87,7 +87,7 @@ const Dispatch = () => {
 
   const fetchSalePersons = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/salesPersons');
+      const response = await axios.get('https://stockhandle.onrender.com/salesPersons');
       setSalePersons(response.data);
     } catch (error) {
       console.error('Error fetching sale persons:', error);
@@ -104,11 +104,11 @@ const Dispatch = () => {
     try {
       if (selected.length > 0) {
         await Promise.all(
-          selected.map((id) => axios.delete(`http://localhost:5000/api/invoices/${id}`))
+          selected.map((id) => axios.delete(`https://stockhandle.onrender.com/api/invoices/${id}`))
         );
         enqueueSnackbar(`${selected.length} invoices deleted successfully`, { variant: 'success' });
       } else if (selectedInvoice) {
-        await axios.delete(`http://localhost:5000/api/invoices/${selectedInvoice._id}`);
+        await axios.delete(`https://stockhandle.onrender.com/api/invoices/${selectedInvoice._id}`);
         enqueueSnackbar('Invoice deleted successfully', { variant: 'success' });
       }
       setOpenDeleteDialog(false);
@@ -262,7 +262,7 @@ const Dispatch = () => {
         phoneNumber: selectedInvoice?.customer?.phoneNo || '',
       };
 
-      await axios.post('http://localhost:5000/api/dispatch', dispatchData);
+      await axios.post('https://stockhandle.onrender.com/api/dispatch', dispatchData);
       enqueueSnackbar('Dispatch recorded successfully!', { variant: 'success' });
       handleCloseDispatchDialog();
     } catch (error) {
