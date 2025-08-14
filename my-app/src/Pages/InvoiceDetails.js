@@ -85,7 +85,7 @@ const InvoiceDetails = () => {
   useEffect(() => {
     const fetchWarehouseDetails = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/warehouses');
+        const response = await axios.get('https://stockhandle.onrender.com/api/warehouses');
         if (response.data.length > 0) {
           const warehouse = response.data[0];
           setWarehouseDetails({
@@ -106,7 +106,7 @@ const InvoiceDetails = () => {
 
     const fetchDispatch = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/dispatch/${id}`);
+        const response = await axios.get(`https://stockhandle.onrender.com/api/dispatch/${id}`);
         setDispatch(response.data);
       } catch (error) {
         console.error('Error fetching dispatch details:', error);
