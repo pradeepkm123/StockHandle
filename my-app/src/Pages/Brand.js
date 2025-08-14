@@ -58,7 +58,7 @@ const Brand = () => {
 
   const fetchBrands = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/brands');
+      const response = await axios.get('https://stockhandle.onrender.com/api/brands');
       setBrands(response.data);
     } catch (error) {
       enqueueSnackbar('Error fetching brands!', { variant: 'error' });
@@ -97,10 +97,10 @@ const Brand = () => {
   const handleSave = async () => {
     try {
       if (editId !== null) {
-        await axios.put(`http://localhost:5000/api/brands/${editId}`, formData);
+        await axios.put(`https://stockhandle.onrender.com/api/brands/${editId}`, formData);
         enqueueSnackbar('Brand updated successfully!', { variant: 'success' });
       } else {
-        await axios.post('http://localhost:5000/api/brands', formData);
+        await axios.post('https://stockhandle.onrender.com/api/brands', formData);
         enqueueSnackbar('Brand added successfully!', { variant: 'success' });
       }
       fetchBrands();
@@ -132,7 +132,7 @@ const Brand = () => {
 
   const handleDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/api/brands/${brandToDelete}`);
+      await axios.delete(`https://stockhandle.onrender.com/api/brands/${brandToDelete}`);
       enqueueSnackbar('Brand deleted successfully!', { variant: 'success' });
       fetchBrands();
     } catch (error) {
