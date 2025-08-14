@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://stockhandle.onrender.com/api';
 
 // Brand API calls
 export const fetchBrands = () => axios.get(`${API_URL}/brands`);
