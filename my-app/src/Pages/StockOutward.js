@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -13,40 +13,117 @@ import {
   Select,
   MenuItem,
   FormHelperText,
-  Alert,
+  IconButton,
+  Divider,
+  Grid,
+  Paper,
+  Stack,
+  Tooltip,
+  Chip,
 } from '@mui/material';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 
-const StockOutward = () => {
-  const { enqueueSnackbar } = useSnackbar();
-  const [openDialog, setOpenDialog] = useState(false);
-  const [models, setModels] = useState([]);
-  const [salePersons, setSalePersons] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [scannedBarcodes, setScannedBarcodes] = useState(new Set());
-  const [isQuantityManual, setIsQuantityManual] = useState(false);
-  const [lowStockWarning, setLowStockWarning] = useState('');
-  const [selectedModelStock, setSelectedModelStock] = useState(null); // 🔥 Track available stock
+const API_BASE = 'https://stockhandle.onrender.com/api';
+const FILE_HOST = 'https://stockhandle.onrender.com';
 
-  const [formData, setFormData] = useState({
-    customerId: '',
-    customerName: '',
-    customerAddress: '',
-    mailId: '',
-    storeName: '',
-    phoneNumber: '',
+// --- helpers to mirror Master cards ---
+const getImageUrl = (img) => {
+  if (!img) return '/no-image.png';
+  const file = String(img)
+    .replace(/\\/g, '/')
+    .replace(/^\/?uploads\/?/i, '')
+    .split('/')
+    .pop();
+  return `${FILE_HOST}/uploads/${file}`;
+};
+
+const statusForQty = (qty) => {
+  if (qty <= 0) return 'Out of Stock';
+  if (qty > 0 && qty <= 5) return 'Low Stock';
+  return 'In Stock';
+};
+
+const getStatusStyle = (status) => {
+  if (status === 'In Stock') {
+    return {
+      backgroundColor: '#d4edda',
+      color: '#155724',
+      padding: '4px 12px',
+      borderRadius: '16px',
+      fontSize: '12px',
+      fontWeight: '500',
+    };
+  } else if (status === 'Out of Stock') {
+    return {
+      backgroundColor: 'rgb(255 221 232)',
+      color: 'rgb(186 13 13)',
+      padding: '4px 12px',
+      borderRadius: '16px',
+      fontSize: '12px',
+      fontWeight: '500',
+    };
+  } else if (status === 'Low Stock') {
+    return {
+      backgroundColor: '#fff3cd',
+      color: '#856404',
+      padding: '4px 12px',
+      borderRadius: '16px',
+      fontSize: '12px',
+      fontWeight: '500',
+    };
+  }
+  return {};
+};
+
+function makeEmptyLine() {
+  return {
     modelNo: '',
     salePerson: '',
     quantity: 0,
     price: 0,
     shd: '',
     scannedCodes: '',
+    scannedList: [],
+    isQuantityManual: false,
+    lowStockWarning: '',
+  };
+}
+
+const StockOutward = () => {
+  const { enqueueSnackbar } = useSnackbar();
+
+  // Master reference data
+  const [models, setModels] = useState([]);
+  const [salePersons, setSalePersons] = useState([]);
+  const [customers, setCustomers] = useState([]);
+
+  // Dialog / UI state
+  const [openDialog, setOpenDialog] = useState(false);
+
+  // Customer-selected details (read-only)
+  const [customer, setCustomer] = useState({
+    id: '',
+    customerName: '',
+    customerAddress: '',
+    mailId: '',
+    phoneNumber: '',
+    storeName: '',
   });
 
+  // Errors
   const [errors, setErrors] = useState({});
-  const shdInputRef = useRef(null);
 
+  // Global set of scanned barcodes to prevent duplicates across ALL lines
+  const [globalScanned, setGlobalScanned] = useState(new Set());
+
+  // Lines = multiple model rows
+  const [lines, setLines] = useState([makeEmptyLine()]);
+
+  const shdRefs = useRef({}); // option: focus scan input when adding a line
+
+  // ---------- Fetch masters ----------
   useEffect(() => {
     fetchModels();
     fetchSalePersons();
@@ -55,234 +132,348 @@ const StockOutward = () => {
 
   const fetchModels = async () => {
     try {
-      const res = await axios.get('https://stockhandle.onrender.com/api/products');
-      setModels(res.data);
-    } catch {
+      const res = await axios.get(`${API_BASE}/products`);
+      setModels(res.data || []);
+    } catch (e) {
       enqueueSnackbar('Failed to fetch models', { variant: 'error' });
     }
   };
 
   const fetchSalePersons = async () => {
     try {
-      const res = await axios.get('https://stockhandle.onrender.com/api/salesPersons');
-      setSalePersons(res.data);
-    } catch {
+      const res = await axios.get(`${API_BASE}/salesPersons`);
+      setSalePersons(res.data || []);
+    } catch (e) {
       enqueueSnackbar('Failed to fetch sales persons', { variant: 'error' });
     }
   };
 
   const fetchCustomers = async () => {
     try {
-      const res = await axios.get('https://stockhandle.onrender.com/api/customers');
-      setCustomers(res.data);
-    } catch {
+      const res = await axios.get(`${API_BASE}/customers`);
+      setCustomers(res.data || []);
+    } catch (e) {
       enqueueSnackbar('Failed to fetch customers', { variant: 'error' });
     }
   };
 
+  // ---------- Dialog open/close ----------
   const openOutwardDialog = () => {
-    setFormData({
-      customerId: '',
+    setCustomer({
+      id: '',
       customerName: '',
       customerAddress: '',
-      storeName: '',
       mailId: '',
       phoneNumber: '',
-      modelNo: '',
-      salePerson: '',
-      quantity: 0,
-      price: 0,
-      shd: '',
-      scannedCodes: '',
+      storeName: '',
     });
-    setScannedBarcodes(new Set());
+    setLines([makeEmptyLine()]);
     setErrors({});
-    setIsQuantityManual(false);
-    setLowStockWarning('');
-    setSelectedModelStock(null);
+    setGlobalScanned(new Set());
     setOpenDialog(true);
   };
 
-  const closeDialog = () => {
-    setOpenDialog(false);
-  };
+  const closeDialog = () => setOpenDialog(false);
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name === 'quantity') {
-      setIsQuantityManual(true);
-    }
-
-    if (name === 'modelNo') {
-      const selectedModel = models.find((m) => m.model === value);
-      if (selectedModel) {
-        const stock = selectedModel.reorderLevel || 0;
-        setSelectedModelStock(stock);
-        if (stock <= 5) {
-          setLowStockWarning(`Warning: Only ${stock} left in stock for this model!`);
-        } else {
-          setLowStockWarning('');
-        }
-      }
-    }
-
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
-  };
-
+  // ---------- Customer change ----------
   const handleCustomerChange = (e) => {
-    const customerId = e.target.value;
-    const customer = customers.find((c) => c._id === customerId);
-    setFormData((prev) => ({
-      ...prev,
-      customerId,
-      customerName: customer?.customerName || '',
-      customerAddress: customer?.address || '',
-      mailId: customer?.mailId || '',
-      phoneNumber: customer?.phoneNo || '',
-      storeName: customer?.storeName || '',
-    }));
-    if (errors.customerName) {
-      setErrors((prev) => ({ ...prev, customerName: '' }));
+    const id = e.target.value;
+    const c = customers.find(x => x._id === id);
+    setCustomer({
+      id,
+      customerName: c?.customerName || '',
+      customerAddress: c?.address || '',
+      mailId: c?.mailId || '',
+      phoneNumber: c?.phoneNo || '',
+      storeName: c?.storeName || '',
+    });
+    if (errors.customer) {
+      setErrors(prev => ({ ...prev, customer: '' }));
     }
   };
 
-  useEffect(() => {
-    const processBarcode = () => {
-      const barcode = formData.shd.trim();
-      if (!barcode) return;
-      if (!formData.modelNo) {
-        setErrors((prev) => ({ ...prev, shd: 'Select model number first!' }));
-        enqueueSnackbar('Please select a model number before scanning', { variant: 'error' });
-        return;
-      }
-      if (barcode.length >= 8) {
-        const hyphenIndex = formData.modelNo.indexOf('-');
-        const modelPart = hyphenIndex !== -1 ? formData.modelNo.slice(hyphenIndex + 1) : formData.modelNo;
-        if (scannedBarcodes.has(barcode)) {
-          setErrors((prev) => ({ ...prev, shd: 'Barcode already scanned!' }));
-          enqueueSnackbar('This barcode already scanned!', { variant: 'error' });
-        } else if (!barcode.includes(modelPart)) {
-          setErrors((prev) => ({ ...prev, shd: 'Barcode mismatch with model number!' }));
-          enqueueSnackbar('Mismatch: Barcode does not contain model number!', { variant: 'error' });
-        } else {
-          const updatedBarcodes = new Set(scannedBarcodes);
-          updatedBarcodes.add(barcode);
-          setScannedBarcodes(updatedBarcodes);
-          setFormData((prev) => ({
-            ...prev,
-            scannedCodes: prev.scannedCodes ? `${prev.scannedCodes}, ${barcode}`.replace(/,\s*,/g, ',') : barcode,
-            shd: '',
-            quantity: isQuantityManual ? prev.quantity : updatedBarcodes.size,
-          }));
-          setErrors((prev) => ({ ...prev, shd: '' }));
-        }
-      }
-    };
-    if (formData.shd) {
-      const timer = setTimeout(processBarcode, 100);
-      return () => clearTimeout(timer);
+  // ---------- Utility: choose next unused model on + ----------
+  const getNextModelForNewLine = (currentLines, products) => {
+    if (!products.length) return '';
+    const used = new Set(currentLines.map(l => l.modelNo).filter(Boolean));
+    const lastModel = currentLines[currentLines.length - 1]?.modelNo || '';
+    const baseIndex = products.findIndex(p => p.model === lastModel);
+    for (let step = 1; step <= products.length; step++) {
+      const idx = ((baseIndex >= 0 ? baseIndex : -1) + step) % products.length;
+      const candidate = products[idx].model;
+      if (!used.has(candidate)) return candidate;
     }
-  }, [formData.shd, formData.modelNo, scannedBarcodes, enqueueSnackbar, isQuantityManual]);
+    return '';
+  };
 
+  // ---------- Line helpers ----------
+  const setLineValue = (index, field, value) => {
+    setLines(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+    if (errors[`line_${index}_${field}`]) {
+      setErrors(prev => ({ ...prev, [`line_${index}_${field}`]: '' }));
+    }
+  };
+
+  const addLine = () => {
+    setLines(prev => {
+      const newIdx = prev.length;
+      const nextLine = makeEmptyLine();
+      const autoModel = getNextModelForNewLine(prev, models);
+
+      if (autoModel) {
+        nextLine.modelNo = autoModel;
+        const p = models.find(m => m.model === autoModel);
+        const stock = p?.reorderLevel ?? 0;
+        nextLine.lowStockWarning = stock <= 5 ? `Low stock for ${autoModel}: ${stock}` : '';
+      }
+
+      const next = [...prev, nextLine];
+
+      // focus the new scan field
+      setTimeout(() => {
+        shdRefs.current?.[newIdx]?.focus?.();
+      }, 0);
+
+      return next;
+    });
+  };
+
+  const removeLine = (index) => {
+    setLines(prev => {
+      const line = prev[index];
+      // free its scanned barcodes from global set
+      if (line?.scannedList?.length) {
+        const ns = new Set(globalScanned);
+        line.scannedList.forEach(code => ns.delete(code));
+        setGlobalScanned(ns);
+      }
+      const next = prev.slice(0, index).concat(prev.slice(index + 1));
+      return next.length ? next : [makeEmptyLine()];
+    });
+  };
+
+  // ---------- Sanitize & Matching ----------
+  const sanitize = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  const findModelMatchInBarcode = (model, barcode) => {
+    const m = sanitize(model);
+    const b = sanitize(barcode);
+    if (!m || !b) return null;
+    const lengths = [5, 4];
+    for (const L of lengths) {
+      if (m.length < L) continue;
+      for (let i = 0; i <= m.length - L; i++) {
+        const sub = m.slice(i, i + L);
+        if (b.includes(sub)) return sub;
+      }
+    }
+    return null;
+  };
+
+  // ---------- Low stock indicator per line ----------
+  const recomputeLowStockForLine = (index, modelName) => {
+    const p = models.find(m => m.model === modelName);
+    const stock = p?.reorderLevel ?? 0;
+    const text = stock <= 5 ? `Low stock for ${modelName}: ${stock}` : '';
+    setLineValue(index, 'lowStockWarning', text);
+  };
+
+  // ---------- When shd changes, process after tiny delay ----------
+  const handleShdChange = (index, value) => {
+    setLineValue(index, 'shd', value);
+    if (value && value.trim().length >= 8) {
+      setTimeout(() => processBarcode(index), 80);
+    }
+  };
+
+  const processBarcode = (index) => {
+    const line = lines[index];
+    const barcodeRaw = (line.shd || '').trim();
+    if (!barcodeRaw) return;
+
+    // Basic validations
+    if (!customer.id) {
+      enqueueSnackbar('Please select a Customer first', { variant: 'error' });
+      setErrors(prev => ({ ...prev, customer: 'Customer is required' }));
+      return;
+    }
+    if (!line.modelNo) {
+      enqueueSnackbar('Please select Model No for this line first', { variant: 'error' });
+      setErrors(prev => ({ ...prev, [`line_${index}_modelNo`]: 'Model No is required' }));
+      return;
+    }
+
+    // Duplicate check across ALL lines
+    if (globalScanned.has(barcodeRaw)) {
+      enqueueSnackbar('This barcode is already scanned (any line)', { variant: 'error' });
+      setLineValue(index, 'shd', '');
+      return;
+    }
+
+    // Match 5/4 continuous chars from model
+    const matched = findModelMatchInBarcode(line.modelNo, barcodeRaw);
+    if (!matched) {
+      enqueueSnackbar('Mismatch: No 5/4-char continuous segment from Model No found in barcode', { variant: 'error' });
+      setErrors(prev => ({ ...prev, [`line_${index}_shd`]: 'Barcode mismatch with Model No' }));
+      return;
+    }
+
+    // Accept barcode into this line
+    const nextGlobal = new Set(globalScanned);
+    nextGlobal.add(barcodeRaw);
+
+    setLines(prev => {
+      const arr = [...prev];
+      const L = { ...arr[index] };
+      const nextList = Array.from(new Set([...(L.scannedList || []), barcodeRaw]));
+      L.scannedList = nextList;
+      L.scannedCodes = nextList.join(', ');
+      if (!L.isQuantityManual) {
+        L.quantity = nextList.length; // auto-quantity unless user typed
+      }
+      L.shd = '';
+      arr[index] = L;
+      return arr;
+    });
+    setGlobalScanned(nextGlobal);
+
+    enqueueSnackbar(`Accepted for ${line.modelNo} (matched: "${matched}")`, { variant: 'success' });
+  };
+
+  // ---------- Quantity rule: manual typed wins; else scans ----------
+  const qtyForLine = (ln) => {
+    const manual = Number(ln.quantity);
+    if (!Number.isNaN(manual) && manual > 0) return manual; // manual wins (e.g., 13)
+    return ln.scannedList?.length || 0;                      // fallback to scans
+  };
+
+  // ---------- Validate ----------
   const validateForm = () => {
-    const newErrors = {};
-    let valid = true;
-    if (!formData.modelNo) {
-      newErrors.modelNo = 'Model No is required';
-      valid = false;
+    const e = {};
+    let ok = true;
+
+    if (!customer.id) {
+      e.customer = 'Customer is required';
+      ok = false;
     }
-    if (!formData.salePerson) {
-      newErrors.salePerson = 'Sales Person is required';
-      valid = false;
-    }
-    if (!formData.customerId) {
-      newErrors.customerName = 'Customer Name is required';
-      valid = false;
-    }
-    if (!formData.storeName) {
-      newErrors.storeName = 'Store Name is required';
-      valid = false;
-    }
-    if (scannedBarcodes.size === 0) {
-      newErrors.shd = 'Please scan at least one barcode';
-      valid = false;
-    }
-    const quantity = parseInt(formData.quantity);
-    if (selectedModelStock != null && quantity > selectedModelStock) {
-      newErrors.quantity = `Entered quantity exceeds available stock (${selectedModelStock})`;
-      valid = false;
-    }
-    setErrors(newErrors);
-    return valid;
+
+    lines.forEach((ln, i) => {
+      if (!ln.modelNo) {
+        e[`line_${i}_modelNo`] = 'Model No is required';
+        ok = false;
+      }
+      if (!ln.salePerson) {
+        e[`line_${i}_salePerson`] = 'Sales Person is required';
+        ok = false;
+      }
+
+      const qty = qtyForLine(ln);
+      if (qty <= 0) {
+        e[`line_${i}_quantity`] = 'Enter a quantity > 0 or scan at least one code';
+        ok = false;
+      }
+
+      const prod = models.find(m => m.model === ln.modelNo);
+      const stock = prod?.reorderLevel || 0;
+      if (qty > stock) {
+        e[`line_${i}_quantity`] = `Quantity exceeds available stock (${stock})`;
+        ok = false;
+      }
+    });
+
+    setErrors(e);
+    return ok;
   };
 
-  const handleSubmitOutward = async () => {
+  // ---------- Submit ----------
+  const handleSubmit = async () => {
     if (!validateForm()) return;
+
     try {
-      const payload = {
-        modelNo: formData.modelNo,
-        quantity: formData.quantity,
-        price: formData.price,
-        salePerson: formData.salePerson,
-        customerName: formData.customerName,
-        barcodes: Array.from(scannedBarcodes),
-        dispatchDate: new Date(),
-        customerAddress: formData.customerAddress,
-        mailId: formData.mailId,
-        phoneNumber: formData.phoneNumber,
-        storeName: formData.storeName,
-      };
-      await axios.post('https://stockhandle.onrender.com/api/dispatch', payload);
-      const res = await axios.get('https://stockhandle.onrender.com/api/products');
-      const products = res.data;
-      const product = products.find((p) => p.model === formData.modelNo);
-      if (product) {
-        const updatedReorder = Math.max(0, (product.reorderLevel || 0) - formData.quantity);
-        await axios.put(`https://stockhandle.onrender.com/api/products/${product._id}`, {
-          ...product,
+      // refresh products for freshest stock
+      const res = await axios.get(`${API_BASE}/products`);
+      const products = res.data || [];
+
+      for (const ln of lines) {
+        if (!ln.modelNo) continue;
+        const qty = qtyForLine(ln);
+        if (qty <= 0) continue;
+
+        const product = products.find(p => p.model === ln.modelNo);
+        if (!product) continue;
+
+        // Dispatch record
+        const payload = {
+          modelNo: ln.modelNo,
+          quantity: qty, // <-- manual wins here too
+          price: Number(ln.price) || 0,
+          salePerson: ln.salePerson,
+          customerName: customer.customerName,
+          barcodes: ln.scannedList || [],
+          dispatchDate: new Date(),
+          customerAddress: customer.customerAddress,
+          mailId: customer.mailId,
+          phoneNumber: customer.phoneNumber,
+          storeName: customer.storeName,
+        };
+
+        await axios.post(`${API_BASE}/dispatch`, payload);
+
+        // Update stock (subtract)
+        const updatedReorder = Math.max(0, (product.reorderLevel || 0) - qty);
+        const newStatus = statusForQty(updatedReorder);
+
+        // minimal payload update
+        await axios.put(`${API_BASE}/products/${product._id}`, {
           reorderLevel: updatedReorder,
+          stockStatus: newStatus,
         });
       }
-      enqueueSnackbar('Stock outward recorded and reorderLevel updated!', { variant: 'success' });
+
+      enqueueSnackbar('Stock outward recorded and stocks updated!', { variant: 'success' });
       closeDialog();
     } catch (err) {
-      enqueueSnackbar('Failed to submit stock outward', { variant: 'error' });
       console.error(err);
+      enqueueSnackbar('Failed to submit stock outward', { variant: 'error' });
     }
   };
 
+  // ---------- UI ----------
   return (
     <Box sx={{ padding: '40px 20px' }}>
-      <Box sx={{ textAlign: 'center', marginBottom: '40px' }}>
+      <Box sx={{ textAlign: 'center', mb: 4 }}>
         <Typography variant="h4">Stock Outward</Typography>
         <Typography variant="body1">Scan products to remove them from inventory</Typography>
       </Box>
 
-      <Box sx={{
-        maxWidth: '500px',
-        margin: '0 auto',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '60px 40px',
-        textAlign: 'center',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-      }}>
-        <Box sx={{
-          width: '80px',
-          height: '80px',
-          backgroundColor: '#fee2e2',
-          borderRadius: '50%',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: '24px',
-        }}>
+      <Box
+        sx={{
+          maxWidth: 500,
+          mx: 'auto',
+          bgcolor: 'white',
+          borderRadius: 2,
+          p: 6,
+          textAlign: 'center',
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+        }}
+      >
+        <Box
+          sx={{
+            width: 80,
+            height: 80,
+            bgcolor: '#fee2e2',
+            borderRadius: '50%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3,
+          }}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
             <path d="M9 12l2 2 4-4" />
             <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.12 0 4.04.74 5.57 1.97" />
@@ -295,60 +486,265 @@ const StockOutward = () => {
         </Button>
       </Box>
 
-      <Dialog open={openDialog} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Stock Outward</DialogTitle>
+      <Dialog open={openDialog} onClose={closeDialog} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          Stock Outward
+          <Tooltip title="Add Model">
+            <IconButton color="primary" onClick={addLine}>
+              <AddIcon />
+            </IconButton>
+          </Tooltip>
+        </DialogTitle>
+
         <DialogContent>
 
-          {lowStockWarning && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              {lowStockWarning}
-            </Alert>
-          )}
-
-          <FormControl fullWidth sx={{ mt: 2 }} error={!!errors.customerName}>
+          {/* Customer */}
+          <FormControl fullWidth sx={{ mt: 1 }} error={!!errors.customer}>
             <InputLabel>Customer Name *</InputLabel>
-            <Select name="customerId" value={formData.customerId} onChange={handleCustomerChange}>
+            <Select name="customerId" value={customer.id} onChange={handleCustomerChange} label="Customer Name *">
               {customers.map(c => (
                 <MenuItem key={c._id} value={c._id}>{c.customerName}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>{errors.customerName}</FormHelperText>
+            <FormHelperText>{errors.customer}</FormHelperText>
           </FormControl>
 
-          <TextField label="Address" fullWidth value={formData.customerAddress} InputProps={{ readOnly: true }} sx={{ mt: 2 }} />
-          <TextField label="Email" fullWidth value={formData.mailId} InputProps={{ readOnly: true }} sx={{ mt: 2 }} />
-          <TextField label="Phone" fullWidth value={formData.phoneNumber} InputProps={{ readOnly: true }} sx={{ mt: 2 }} />
-          <TextField label="Store Name" fullWidth value={formData.storeName} InputProps={{ readOnly: true }} sx={{ mt: 2 }} />
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6} sx={{ width: '23%' }}>
+              <TextField label="Address" fullWidth value={customer.customerAddress} InputProps={{ readOnly: true }} />
+            </Grid>
+            <Grid item xs={6} sm={6} sx={{ width: '23%' }}>
+              <TextField label="Email" fullWidth value={customer.mailId} InputProps={{ readOnly: true }} />
+            </Grid>
+            <Grid item xs={12} sm={6} sx={{ width: '23%' }}>
+              <TextField label="Phone" fullWidth value={customer.phoneNumber} InputProps={{ readOnly: true }} />
+            </Grid>
+            <Grid item xs={12} sm={6} sx={{ width: '26%' }}>
+              <TextField label="Store Name" fullWidth value={customer.storeName} InputProps={{ readOnly: true }} />
+            </Grid>
+          </Grid>
 
-          <FormControl fullWidth sx={{ mt: 2 }} error={!!errors.modelNo}>
-            <InputLabel>Model No *</InputLabel>
-            <Select name="modelNo" value={formData.modelNo} onChange={handleFormChange}>
-              {models.map((m) => (
-                <MenuItem key={m._id} value={m.model}>{m.model}</MenuItem>
-              ))}
-            </Select>
-            <FormHelperText>{errors.modelNo}</FormHelperText>
-          </FormControl>
+          <Divider sx={{ my: 3 }} />
 
-          <FormControl fullWidth sx={{ mt: 2 }} error={!!errors.salePerson}>
-            <InputLabel>Sales Person *</InputLabel>
-            <Select name="salePerson" value={formData.salePerson} onChange={handleFormChange}>
-              {salePersons.map((p) => (
-                <MenuItem key={p._id} value={p.employeeName}>{p.employeeName}</MenuItem>
-              ))}
-            </Select>
-            <FormHelperText>{errors.salePerson}</FormHelperText>
-          </FormControl>
+          {/* Lines */}
+          <Stack spacing={2}>
+            {lines.map((ln, idx) => {
+              const product = models.find(m => m.model === ln.modelNo);
+              const stock = product?.reorderLevel ?? 0;
+              const qty = qtyForLine(ln);
+              const afterStock = Math.max(0, stock - qty);
 
-          <TextField name="quantity" label="Quantity" type="number" fullWidth value={formData.quantity} onChange={handleFormChange} sx={{ mt: 2 }} error={!!errors.quantity} helperText={errors.quantity} />
-          <TextField name="price" label="Price per Unit" type="number" fullWidth value={formData.price} onChange={handleFormChange} sx={{ mt: 2 }} />
-          <TextField name="shd" label="Scan barcode (auto)" fullWidth value={formData.shd} onChange={handleFormChange} error={!!errors.shd} helperText={errors.shd} inputRef={shdInputRef} sx={{ mt: 2 }} />
-          <TextField label="Scanned Codes" fullWidth multiline rows={3} value={formData.scannedCodes} InputProps={{ readOnly: true }} sx={{ mt: 2 }} />
-          <Typography variant="body2" sx={{ mt: 1 }}>Total Scanned: {scannedBarcodes.size}</Typography>
+              return (
+                <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Typography fontWeight={600}>Model #{idx + 1}</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {ln.lowStockWarning && <Chip label={ln.lowStockWarning} color="warning" size="small" />}
+                      <Tooltip title="Remove model line">
+                        <span>
+                          <IconButton color="error" onClick={() => removeLine(idx)} disabled={lines.length === 1}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={4} sx={{ width: '20rem' }}>
+                      <FormControl fullWidth error={!!errors[`line_${idx}_modelNo`]}>
+                        <InputLabel>Model No *</InputLabel>
+                        <Select
+                          label="Model No *"
+                          value={ln.modelNo}
+                          onChange={(e) => {
+                            setLineValue(idx, 'modelNo', e.target.value);
+                            recomputeLowStockForLine(idx, e.target.value);
+                          }}
+                        >
+                          {models.map((m) => (
+                            <MenuItem key={m._id} value={m.model}>{m.model}</MenuItem>
+                          ))}
+                        </Select>
+                        <FormHelperText>{errors[`line_${idx}_modelNo`]}</FormHelperText>
+                      </FormControl>
+                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                        Current stock: {stock}
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4} sx={{ width: '20rem' }}>
+                      <FormControl fullWidth error={!!errors[`line_${idx}_salePerson`]}>
+                        <InputLabel>Sales Person *</InputLabel>
+                        <Select
+                          label="Sales Person *"
+                          value={ln.salePerson}
+                          onChange={(e) => setLineValue(idx, 'salePerson', e.target.value)}
+                        >
+                          {salePersons.map(p => (
+                            <MenuItem key={p._id} value={p.employeeName}>{p.employeeName}</MenuItem>
+                          ))}
+                        </Select>
+                        <FormHelperText>{errors[`line_${idx}_salePerson`]}</FormHelperText>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4} sx={{ width: '27rem' }}>
+                      <TextField
+                        label="Quantity"
+                        type="number"
+                        fullWidth
+                        value={ln.quantity}
+                        onChange={(e) => {
+                          setLineValue(idx, 'isQuantityManual', true);
+                          setLineValue(idx, 'quantity', e.target.value);
+                        }}
+                        error={!!errors[`line_${idx}_quantity`]}
+                        helperText={errors[`line_${idx}_quantity`] || 'Typed value overrides scans'}
+                      />
+                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                        After outward: {afterStock} {qty > 0 ? `( -${qty} )` : ''}
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4} sx={{ width: '30rem' }}>
+                      <TextField
+                        label="Price per Unit"
+                        type="number"
+                        fullWidth
+                        value={ln.price}
+                        onChange={(e) => setLineValue(idx, 'price', e.target.value)}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12} md={8} sx={{ width: '38rem' }}>
+                      <TextField
+                        label="Scan barcode (auto)"
+                        fullWidth
+                        value={ln.shd}
+                        onChange={(e) => handleShdChange(idx, e.target.value)}
+                        error={!!errors[`line_${idx}_shd`]}
+                        helperText={errors[`line_${idx}_shd`] || 'Barcode must include any continuous 5 or 4 chars from Model No'}
+                        inputRef={(el) => (shdRefs.current[idx] = el)}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12} sx={{ width: '100%' }}>
+                      <TextField
+                        label="Scanned Codes"
+                        fullWidth
+                        multiline
+                        rows={3}
+                        value={ln.scannedCodes}
+                        InputProps={{ readOnly: true }}
+                        sx={{ width: '100%' }}
+                      />
+                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block', width: '100%' }}>
+                        Total scanned: {ln.scannedList.length}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              );
+            })}
+          </Stack>
+
+          {/* ---- Live PREVIEW (same look as Master cards) ---- */}
+          <Divider sx={{ my: 3 }}>Selected Products Preview</Divider>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+            {lines
+              .filter((ln) => ln.modelNo)
+              .map((ln, i) => {
+                const p = models.find((x) => x.model === ln.modelNo);
+                if (!p) return null;
+
+                const current = p.reorderLevel ?? 0;
+                const qty = qtyForLine(ln);
+                const after = Math.max(0, current - qty);
+                const statusAfter = statusForQty(after);
+
+                return (
+                  <div
+                    key={`${ln.modelNo}-${i}`}
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: 12,
+                      padding: 24,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      border: '1px solid #f0f0f0',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 17, color: '#1a1a1a', marginBottom: 4 }}>{p.brand || 'No Brand'}</h3>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <div style={{ fontSize: 13, color: '#6c757d' }}>Model:</div>
+                          <div style={{ fontSize: 13, color: '#1a1a1a', fontWeight: 500 }}>{p.model || 'No Model'}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 4 }}>Sub-Category:</div>
+                          <div style={{ fontSize: 13, color: '#1a1a1a', fontWeight: 500 }}>{p.subCategory || '-'}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                        <span style={getStatusStyle(statusAfter)}>{statusAfter}</span>
+                        <img
+                          src={getImageUrl(p.productImage)}
+                          alt="Product"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = '/no-image.png';
+                          }}
+                          style={{
+                            width: 45,
+                            height: 45,
+                            objectFit: 'cover',
+                            border: '1px solid #e9e9e9',
+                            borderRadius: 4,
+                            boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', marginBottom: 24 }}>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ fontSize: 13, color: '#1a1a1a', marginBottom: 4 }}>Category:</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>{p.category || '-'}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', display: 'flex', gap: 10, justifyContent: 'end' }}>
+                        <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 4 }}>EmailTo:</div>
+                        <div style={{ fontSize: 13, color: '#1a1a1a' }}>{p.emailTo || '-'}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 4 }}>Quantity:</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>
+                          {current} → <span style={{ fontWeight: 700 }}>{after}</span> {qty > 0 ? `(-${qty})` : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', display: 'flex', gap: 10, justifyContent: 'end', alignItems: 'center' }}>
+                        <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 4 }}>Old Price:</div>
+                        <div style={{ fontSize: 13, color: 'rgb(108 117 125)', textDecoration: 'line-through' }}>
+                          ₹{Number(p.mrp || 0).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 4, marginLeft: 10 }}>Price:</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#28a745' }}>
+                          ₹{Number(p.dealerPrice || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
         </DialogContent>
+
         <DialogActions>
           <Button onClick={closeDialog}>Cancel</Button>
-          <Button onClick={handleSubmitOutward} variant="contained" color="primary">
+          <Button onClick={handleSubmit} variant="contained" color="primary">
             Submit
           </Button>
         </DialogActions>
