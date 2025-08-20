@@ -673,13 +673,15 @@ const StockOutward = () => {
                         error={!!errors[`line_${idx}_quantity`]}
                         helperText={errors[`line_${idx}_quantity`] || 'Typed value caps how many barcodes you can scan for this row'}
                       />
-                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                         <div style={{display:'flex',justifyContent:'space-between'}}>
+                         <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                         After outward: {afterStock} {qty > 0 ? `( -${qty} )` : ''}
                       </Typography>
                       <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                         {cap === Infinity ? 'No scan limit (uses scanned count)' : `Remaining scans allowed: ${remaining}`}
                       </Typography>
-                    </Grid>
+                      </div>
+                  </Grid>
 
                     <Grid item xs={12} sm={6} md={4} sx={{ width: '30rem' }}>
                       <TextField
