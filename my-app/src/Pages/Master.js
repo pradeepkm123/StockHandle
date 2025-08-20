@@ -9,8 +9,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Typography
+  Typography,
+  MenuItem
 } from '@mui/material';
+import Pagination from '@mui/material/Pagination';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import AddProduct from './AddProduct';
@@ -21,7 +23,7 @@ import axios from 'axios';
 const API_URL = 'https://stockhandle.onrender.com/api';
 const FILE_HOST = 'https://stockhandle.onrender.com';
 
-// --- safer URL builder (keeps only filename, normalizes slashes, encodes spaces etc.)
+// --- safer URL builder
 const getImageUrl = (img) => {
   if (!img) return '/no-image.png';
   const file = String(img)
@@ -32,7 +34,7 @@ const getImageUrl = (img) => {
   return `${FILE_HOST}/uploads/${encodeURIComponent(file)}`;
 };
 
-// --- tiny component that remembers if an image failed and locks to the fallback
+// --- remembers if an image failed and locks to the fallback
 const ProductImage = ({ src, alt, style }) => {
   const [failed, setFailed] = useState(false);
   const finalSrc = failed ? '/no-image.png' : src;
@@ -79,6 +81,11 @@ const Master = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [products, setProducts] = useState([]);
   const [open, setOpen] = useState(false);
+
+  // NEW: pagination state
+  const [page, setPage] = useState(1);           // 1-based for MUI Pagination
+  const [rowsPerPage, setRowsPerPage] = useState(9);
+
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -239,6 +246,7 @@ const Master = () => {
     return {};
   };
 
+  // Filter first
   const filteredData = products.filter((product) => {
     return (
       (product.category || '').toLowerCase().includes(filters.category.toLowerCase()) &&
@@ -247,6 +255,17 @@ const Master = () => {
       (product.subCategory || '').toLowerCase().includes(filters.subCategory.toLowerCase())
     );
   });
+
+  // NEW: derive pagination after filtering
+  const pageCount = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+  const startIndex = (page - 1) * rowsPerPage;
+  const endIndex = Math.min(filteredData.length, startIndex + rowsPerPage);
+  const currentData = filteredData.slice(startIndex, startIndex + rowsPerPage);
+
+  // Reset to page 1 on filters/products/rowsPerPage change
+  useEffect(() => {
+    setPage(1);
+  }, [filters, products, rowsPerPage]);
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -266,126 +285,169 @@ const Master = () => {
             <Typography variant="h6" gutterBottom>
               Add Product
             </Typography>
+
+            {/* Filters + Add */}
             <Box sx={{ boxShadow: 3, p: 2, mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
                 <Button variant="contained" color="primary" onClick={handleClickOpen} startIcon={<AddIcon />}>
                   Add Product
                 </Button>
-                <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <TextField name="category" label="Category" variant="outlined" value={filters.category} onChange={handleFilterChange} size="small" />
                   <TextField name="brand" label="Brand" variant="outlined" value={filters.brand} onChange={handleFilterChange} size="small" />
                   <TextField name="model" label="Model" variant="outlined" value={filters.model} onChange={handleFilterChange} size="small" />
                   <TextField name="subCategory" label="Sub Category" variant="outlined" value={filters.subCategory} onChange={handleFilterChange} size="small" />
                 </Box>
               </Box>
+
+              {/* NEW: top pagination bar */}
+            
             </Box>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-              {filteredData.map((product) => (
-                <div
-                  key={product._id}
-                  style={{
-                    backgroundColor: 'white',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                    border: '1px solid #f0f0f0'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '17px', color: '#1a1a1a', marginBottom: '4px' }}>
-                        {product.brand || 'No Brand'}
-                      </h3>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <div style={{ fontSize: '13px', color: '#6c757d' }}>Model:</div>
-                        <div style={{ fontSize: '13px', color: '#1a1a1a', fontWeight: '500' }}>
-                          {product.model || 'No Model'}
+            {/* Grid */}
+            {currentData.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+                No products found.
+              </Box>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                {currentData.map((product) => (
+                  <div
+                    key={product._id}
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: '12px',
+                      padding: '24px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      border: '1px solid #f0f0f0'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '17px', color: '#1a1a1a', marginBottom: '4px' }}>
+                          {product.brand || 'No Brand'}
+                        </h3>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{ fontSize: '13px', color: '#6c757d' }}>Model:</div>
+                          <div style={{ fontSize: '13px', color: '#1a1a1a', fontWeight: '500' }}>
+                            {product.model || 'No Model'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>Sub-Category:</div>
+                          <div style={{ fontSize: '13px', color: '#1a1a1a', fontWeight: '500' }}>
+                            {product.subCategory || 'No SKU'}
+                          </div>
                         </div>
                       </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        <span style={getStatusStyle(product.stockStatus)}>{product.stockStatus || 'Unknown'}</span>
+
+                        <ProductImage
+                          src={getImageUrl(product.productImage)}
+                          alt="Product"
+                          style={{
+                            width: '45px',
+                            height: '45px',
+                            objectFit: 'cover',
+                            border: '1px solid #e9e9e9',
+                            borderRadius: '4px',
+                            boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', marginBottom: '24px' }}>
                       <div style={{ display: 'flex', gap: '10px' }}>
-                        <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>Sub-Category:</div>
-                        <div style={{ fontSize: '13px', color: '#1a1a1a', fontWeight: '500' }}>
-                          {product.subCategory || 'No SKU'}
+                        <div style={{ fontSize: '13px', color: '#1a1a1a', marginBottom: '4px' }}>Category:</div>
+                        <div style={{ fontSize: '13px', fontWeight: '500', color: '#1a1a1a' }}>
+                          {product.category || 'No Category'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', display: 'flex', gap: '10px', justifyContent: 'end' }}>
+                        <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>EmailTo:</div>
+                        <div style={{ fontSize: '13px', color: '#1a1a1a' }}>{product.emailTo || '-'}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>Quantity:</div>
+                        <div style={{ fontSize: '13px', fontWeight: '500', color: '#1a1a1a' }}>
+                          {product.reorderLevel ?? 0}
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', display: 'flex', gap: '10px', justifyContent: 'end', alignItems: 'center' }}>
+                        <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>Old Price:</div>
+                        <div style={{ fontSize: '13px', color: 'rgb(108 117 125)', textDecoration: 'line-through' }}>
+                          ₹{Number(product.mrp || 0).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px', marginLeft: '10px' }}>Price:</div>
+                        <div style={{ fontSize: '13px', fontWeight: '500', color: '#28a745' }}>
+                          ₹{Number(product.dealerPrice || 0).toLocaleString()}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                      <span style={getStatusStyle(product.stockStatus)}>{product.stockStatus || 'Unknown'}</span>
-
-                      <ProductImage
-                        src={getImageUrl(product.productImage)}
-                        alt="Product"
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
                         style={{
-                          width: '45px',
-                          height: '45px',
-                          objectFit: 'cover',
-                          border: '1px solid #e9e9e9',
-                          borderRadius: '4px',
-                          boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px'
+                          flex: 1, backgroundColor: '#e3f2fd', color: '#1976d2', border: 'none', borderRadius: '8px',
+                          padding: '10px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                         }}
-                      />
+                        onClick={() => handleEdit(product)}
+                      >
+                        <EditIcon fontSize="small" /> Edit
+                      </button>
+
+                      <button
+                        style={{
+                          flex: 1, backgroundColor: '#ffebee', color: '#d32f2f', border: 'none', borderRadius: '8px',
+                          padding: '10px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                        }}
+                        onClick={() => handleDelete(product._id)}
+                      >
+                        <DeleteIcon fontSize="small" /> Delete
+                      </button>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <div style={{ fontSize: '13px', color: '#1a1a1a', marginBottom: '4px' }}>Category:</div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#1a1a1a' }}>
-                        {product.category || 'No Category'}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', display: 'flex', gap: '10px', justifyContent: 'end' }}>
-                      <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>EmailTo:</div>
-                      <div style={{ fontSize: '13px', color: '#1a1a1a' }}>{product.emailTo || '-'}</div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>Quantity:</div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#1a1a1a' }}>
-                        {product.reorderLevel ?? 0}
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: 'right', display: 'flex', gap: '10px', justifyContent: 'end', alignItems: 'center' }}>
-                      <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px' }}>Old Price:</div>
-                      <div style={{ fontSize: '13px', color: 'rgb(108 117 125)', textDecoration: 'line-through' }}>
-                        ₹{Number(product.mrp || 0).toLocaleString()}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#6c757d', marginBottom: '4px', marginLeft: '10px' }}>Price:</div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#28a745' }}>
-                        ₹{Number(product.dealerPrice || 0).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                      style={{
-                        flex: 1, backgroundColor: '#e3f2fd', color: '#1976d2', border: 'none', borderRadius: '8px',
-                        padding: '10px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                      }}
-                      onClick={() => handleEdit(product)}
-                    >
-                      <EditIcon fontSize="small" /> Edit
-                    </button>
-
-                    <button
-                      style={{
-                        flex: 1, backgroundColor: '#ffebee', color: '#d32f2f', border: 'none', borderRadius: '8px',
-                        padding: '10px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                      }}
-                      onClick={() => handleDelete(product._id)}
-                    >
-                      <DeleteIcon fontSize="small" /> Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Bottom Pagination (optional duplicate for long lists) */}
+            {filteredData.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', marginTop:'1%' }}>
+                <Typography variant="body2">
+                  Showing <strong>{filteredData.length ? startIndex + 1 : 0}</strong>–<strong>{endIndex}</strong> of <strong>{filteredData.length}</strong> products
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <TextField
+                    select
+                    size="small"
+                    label="Per page"
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    sx={{ width: 120 }}
+                  >
+                    {[6, 9, 12, 15, 18, 24].map(opt => (
+                      <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                    ))}
+                  </TextField>
+                  <Pagination
+                    count={pageCount}
+                    page={page}
+                    onChange={(_, p) => setPage(p)}
+                    color="primary"
+                    shape="rounded"
+                  />
+                </Box>
+              </Box>
+              
+            )}
 
             <AddProduct
               open={open}
