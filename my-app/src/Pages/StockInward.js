@@ -231,6 +231,18 @@ const StockInward = () => {
     return null;
   };
 
+  // ---- helpers for quantity cap (NEW)
+  const capForLine = (ln) => {
+    const q = Number(ln.quantity);
+    if (ln.isQuantityManual && Number.isFinite(q) && q > 0) return q;
+    return Infinity; // no cap unless a positive manual qty is set
+    };
+  const remainingForLine = (ln) => {
+    const cap = capForLine(ln);
+    if (cap === Infinity) return Infinity;
+    return Math.max(0, cap - (ln.scannedList?.length || 0));
+  };
+
   // line helpers
   const setLineValue = (idx, field, value) => {
     setLines((prev) => {
@@ -258,12 +270,20 @@ const StockInward = () => {
 
   const processBarcode = (idx) => {
     const ln = lines[idx];
-    const raw = (ln.shd || '').trim();
+    const raw = (ln?.shd || '').trim();
     if (!raw) return;
 
     if (!ln.modelNo) {
       enqueueSnackbar('Select Model No for this row first', { variant: 'error' });
       setLineErrors((e) => ({ ...e, [`l${idx}_modelNo`]: 'Model No is required' }));
+      return;
+    }
+
+    // Enforce cap BEFORE any other work (NEW)
+    const cap = capForLine(ln);
+    if (cap !== Infinity && (ln.scannedList?.length || 0) >= cap) {
+      enqueueSnackbar(`Target reached: ${cap} scans for this row`, { variant: 'warning' });
+      setLineValue(idx, 'shd', '');
       return;
     }
 
@@ -280,6 +300,7 @@ const StockInward = () => {
       return;
     }
 
+    // Ok to accept this code
     const nextGlobal = new Set(globalScanned);
     nextGlobal.add(raw);
     setGlobalScanned(nextGlobal);
@@ -287,17 +308,38 @@ const StockInward = () => {
     setLines((prev) => {
       const arr = [...prev];
       const L = { ...arr[idx] };
+
+      // re-check cap with freshest row state (NEW)
+      const _cap = capForLine(L);
+      const currentLen = L.scannedList?.length || 0;
+      if (_cap !== Infinity && currentLen >= _cap) {
+        // cap reached in the meantime
+        return arr;
+      }
+
       const nextList = Array.from(new Set([...(L.scannedList || []), raw]));
+
+      // If adding would exceed cap, ignore the add (NEW)
+      if (_cap !== Infinity && nextList.length > _cap) {
+        return arr;
+      }
+
       L.scannedList = nextList;
       L.scannedCodes = nextList.join(', ');
-      // Do NOT override manual quantity if user typed it
+      // Do NOT override manual quantity if user typed it (unchanged)
       if (!L.isQuantityManual) L.quantity = nextList.length;
       L.shd = '';
+
       arr[idx] = L;
       return arr;
     });
 
-    enqueueSnackbar(`Accepted for ${ln.modelNo} (match: "${matched}")`, { variant: 'success' });
+    const left = remainingForLine({ ...ln, scannedList: [...(ln.scannedList || []), raw] });
+    enqueueSnackbar(
+      left === Infinity ? `Accepted for ${ln.modelNo} (match: "${matched}")` :
+      `Accepted (${ln.modelNo}). Remaining: ${left}`,
+      { variant: 'success' }
+    );
   };
 
   const validateForm = () => {
@@ -318,12 +360,17 @@ const StockInward = () => {
     lines.forEach((ln, i) => {
       const key = (f) => `l${i}_${f}`;
       if (!ln.modelNo) { eLine[key('modelNo')] = 'Model No is required'; ok = false; }
-      if (!ln.salePerson) { eLine[key('salePerson')] = 'Sales Person is required'; ok = false; }
+      // if (!ln.salePerson) { eLine[key('salePerson')] = 'Sales Person is required'; ok = false; }
       const qty = qtyForLine(ln);
       if (qty <= 0) {
         eLine[key('quantity')] = 'Enter a quantity > 0 or scan at least one code';
         ok = false;
       }
+      // Optional strictness (commented): enforce scans == manual qty
+      // if (ln.isQuantityManual && ln.quantity > 0 && (ln.scannedList?.length || 0) !== Number(ln.quantity)) {
+      //   eLine[key('shd')] = `Please scan exactly ${ln.quantity} codes for this row`;
+      //   ok = false;
+      // }
     });
 
     setErrors(eTop);
@@ -380,9 +427,6 @@ const StockInward = () => {
           salePerson: ln.salePerson,
         });
       }
-
-      // If your Master page listens for this, it can auto-refresh:
-      // window.dispatchEvent(new Event('products-updated'));
 
       enqueueSnackbar('Stock inward recorded and stocks updated!', { variant: 'success' });
       handleDialogClose();
@@ -511,6 +555,9 @@ const StockInward = () => {
               const incomingQty = qtyForLine(ln);
               const afterStock = currentStock + incomingQty;
 
+              const remaining = remainingForLine(ln);
+              const cap = capForLine(ln);
+
               return (
                 <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
@@ -528,7 +575,7 @@ const StockInward = () => {
                   </Stack>
 
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={4} style={{ width: '23%' }}>
+                    <Grid item xs={12} sm={6} md={6} style={{ width: '34rem' }}>
                       <FormControl fullWidth error={!!lineErrors[`l${idx}_modelNo`]}>
                         <InputLabel>Model No *</InputLabel>
                         <Select
@@ -550,48 +597,53 @@ const StockInward = () => {
                       </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={4} style={{ width: '23%' }}>
-                      <FormControl fullWidth error={!!lineErrors[`l${idx}_salePerson`]}>
-                        <InputLabel>Sales Person *</InputLabel>
-                        <Select
-                          label="Sales Person *"
-                          value={ln.salePerson}
-                          onChange={(e) => setLineValue(idx, 'salePerson', e.target.value)}
-                        >
-                          {salePersons.map((sp) => (
-                            <MenuItem key={sp._id} value={sp.employeeName}>{sp.employeeName}</MenuItem>
-                          ))}
-                        </Select>
-                        <FormHelperText>{lineErrors[`l${idx}_salePerson`]}</FormHelperText>
-                      </FormControl>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={4} style={{ width: '23%' }}>
+                    {/* Quantity with cap logic (UPDATED) */}
+                    <Grid item xs={12} sm={6} md={6} style={{ width: '33rem' }}>
                       <TextField
                         label="Quantity"
                         type="number"
                         fullWidth
                         value={ln.quantity}
                         onChange={(e) => {
+                          const val = Number(e.target.value);
                           setLineValue(idx, 'isQuantityManual', true);
                           setLineValue(idx, 'quantity', e.target.value);
+
+                          // Trim scanned list if user lowers the quantity cap (NEW)
+                          setLines((prev) => {
+                            const arr = [...prev];
+                            const L = { ...arr[idx] };
+                            const q = Number(val);
+                            if (Number.isFinite(q) && q >= 0) {
+                              const cur = L.scannedList || [];
+                              if (cur.length > q) {
+                                const kept = cur.slice(0, q);
+                                const removed = cur.slice(q);
+
+                                // Update global set to remove trimmed codes
+                                const ns = new Set(globalScanned);
+                                removed.forEach((c) => ns.delete(c));
+                                setGlobalScanned(ns);
+
+                                L.scannedList = kept;
+                                L.scannedCodes = kept.join(', ');
+                              }
+                            }
+                            arr[idx] = L;
+                            return arr;
+                          });
                         }}
                         error={!!lineErrors[`l${idx}_quantity`]}
-                        helperText={lineErrors[`l${idx}_quantity`] || 'Typed value overrides scans'}
+                        helperText={lineErrors[`l${idx}_quantity`] || 'Typed value caps how many barcodes you can scan for this row'}
                       />
-                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                      <div style={{display:'flex',justifyContent:'space-between'}}>
+                        <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                         After inward: {afterStock} {incomingQty > 0 ? `( +${incomingQty} )` : ''}
                       </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={4} style={{ width: '23%' }}>
-                      <TextField
-                        label="Price per Unit"
-                        type="number"
-                        fullWidth
-                        value={ln.price}
-                        onChange={(e) => setLineValue(idx, 'price', e.target.value)}
-                      />
+                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                        {cap === Infinity ? 'No scan limit (uses scanned count)' : `Remaining scans allowed: ${remaining}`}
+                      </Typography>
+                      </div>
                     </Grid>
 
                     <Grid item xs={12} md={8} style={{ width: '100%' }}>
@@ -601,8 +653,14 @@ const StockInward = () => {
                         value={ln.shd}
                         onChange={(e) => handleScanChange(idx, e.target.value)}
                         error={!!lineErrors[`l${idx}_shd`]}
-                        helperText={lineErrors[`l${idx}_shd`] || 'Barcode must include any continuous 5 or 4 chars from Model No'}
+                        helperText={
+                          lineErrors[`l${idx}_shd`]
+                            || (cap === Infinity
+                                  ? 'Barcode must include any continuous 5 or 4 chars from Model No'
+                                  : `Allowed up to ${cap} scans for this row`)
+                        }
                         inputRef={(el) => (shdRefs.current[idx] = el)}
+                        disabled={remaining === 0} // disable when cap reached (NEW)
                       />
                     </Grid>
 
