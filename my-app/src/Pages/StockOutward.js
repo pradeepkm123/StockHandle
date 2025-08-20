@@ -274,6 +274,18 @@ const StockOutward = () => {
     return null;
   };
 
+  // ---------- Quantity cap helpers (NEW) ----------
+  const capForLine = (ln) => {
+    const q = Number(ln.quantity);
+    if (ln.isQuantityManual && Number.isFinite(q) && q > 0) return q;
+    return Infinity; // no cap unless a positive manual qty is set
+  };
+  const remainingForLine = (ln) => {
+    const cap = capForLine(ln);
+    if (cap === Infinity) return Infinity;
+    return Math.max(0, cap - (ln.scannedList?.length || 0));
+  };
+
   // ---------- Low stock indicator per line ----------
   const recomputeLowStockForLine = (index, modelName) => {
     const p = models.find(m => m.model === modelName);
@@ -307,6 +319,14 @@ const StockOutward = () => {
       return;
     }
 
+    // Enforce quantity cap BEFORE anything else (NEW)
+    const cap = capForLine(line);
+    if (cap !== Infinity && (line.scannedList?.length || 0) >= cap) {
+      enqueueSnackbar(`Target reached: ${cap} scans for this row`, { variant: 'warning' });
+      setLineValue(index, 'shd', '');
+      return;
+    }
+
     // Duplicate check across ALL lines
     if (globalScanned.has(barcodeRaw)) {
       enqueueSnackbar('This barcode is already scanned (any line)', { variant: 'error' });
@@ -323,25 +343,47 @@ const StockOutward = () => {
     }
 
     // Accept barcode into this line
-    const nextGlobal = new Set(globalScanned);
-    nextGlobal.add(barcodeRaw);
-
     setLines(prev => {
       const arr = [...prev];
       const L = { ...arr[index] };
+
+      // Re-check cap with freshest row state (NEW)
+      const _cap = capForLine(L);
+      const currentLen = L.scannedList?.length || 0;
+      if (_cap !== Infinity && currentLen >= _cap) {
+        return arr; // already at cap
+      }
+
       const nextList = Array.from(new Set([...(L.scannedList || []), barcodeRaw]));
+      // If adding would exceed cap, ignore (NEW)
+      if (_cap !== Infinity && nextList.length > _cap) {
+        return arr;
+      }
+
       L.scannedList = nextList;
       L.scannedCodes = nextList.join(', ');
       if (!L.isQuantityManual) {
-        L.quantity = nextList.length; // auto-quantity unless user typed
+        L.quantity = nextList.length; // auto-sync when no manual qty
       }
       L.shd = '';
       arr[index] = L;
+
+      // Update global scanned only when we really added
+      const ns = new Set(globalScanned);
+      ns.add(barcodeRaw);
+      setGlobalScanned(ns);
+
+      // Success toast with remaining
+      const left = remainingForLine(L);
+      enqueueSnackbar(
+        left === Infinity
+          ? `Accepted for ${line.modelNo} (match: "${matched}")`
+          : `Accepted (${line.modelNo}). Remaining: ${left}`,
+        { variant: 'success' }
+      );
+
       return arr;
     });
-    setGlobalScanned(nextGlobal);
-
-    enqueueSnackbar(`Accepted for ${line.modelNo} (matched: "${matched}")`, { variant: 'success' });
   };
 
   // ---------- Quantity rule: manual typed wins; else scans ----------
@@ -409,7 +451,7 @@ const StockOutward = () => {
         // Dispatch record
         const payload = {
           modelNo: ln.modelNo,
-          quantity: qty, // <-- manual wins here too
+          quantity: qty, // manual still wins
           price: Number(ln.price) || 0,
           salePerson: ln.salePerson,
           customerName: customer.customerName,
@@ -534,6 +576,10 @@ const StockOutward = () => {
               const qty = qtyForLine(ln);
               const afterStock = Math.max(0, stock - qty);
 
+              // NEW: remaining + cap for UI
+              const remaining = remainingForLine(ln);
+              const cap = capForLine(ln);
+
               return (
                 <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
@@ -596,14 +642,42 @@ const StockOutward = () => {
                         fullWidth
                         value={ln.quantity}
                         onChange={(e) => {
+                          const val = Number(e.target.value);
                           setLineValue(idx, 'isQuantityManual', true);
                           setLineValue(idx, 'quantity', e.target.value);
+
+                          // Trim scanned list if user lowers the quantity cap (NEW)
+                          setLines((prev) => {
+                            const arr = [...prev];
+                            const L = { ...arr[idx] };
+                            const q = Number(val);
+                            if (Number.isFinite(q) && q >= 0) {
+                              const cur = L.scannedList || [];
+                              if (cur.length > q) {
+                                const kept = cur.slice(0, q);
+                                const removed = cur.slice(q);
+
+                                // Update global set to remove trimmed codes
+                                const ns = new Set(globalScanned);
+                                removed.forEach((c) => ns.delete(c));
+                                setGlobalScanned(ns);
+
+                                L.scannedList = kept;
+                                L.scannedCodes = kept.join(', ');
+                              }
+                            }
+                            arr[idx] = L;
+                            return arr;
+                          });
                         }}
                         error={!!errors[`line_${idx}_quantity`]}
-                        helperText={errors[`line_${idx}_quantity`] || 'Typed value overrides scans'}
+                        helperText={errors[`line_${idx}_quantity`] || 'Typed value caps how many barcodes you can scan for this row'}
                       />
                       <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                         After outward: {afterStock} {qty > 0 ? `( -${qty} )` : ''}
+                      </Typography>
+                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                        {cap === Infinity ? 'No scan limit (uses scanned count)' : `Remaining scans allowed: ${remaining}`}
                       </Typography>
                     </Grid>
 
@@ -624,8 +698,14 @@ const StockOutward = () => {
                         value={ln.shd}
                         onChange={(e) => handleShdChange(idx, e.target.value)}
                         error={!!errors[`line_${idx}_shd`]}
-                        helperText={errors[`line_${idx}_shd`] || 'Barcode must include any continuous 5 or 4 chars from Model No'}
+                        helperText={
+                          errors[`line_${idx}_shd`]
+                            || (cap === Infinity
+                                  ? 'Barcode must include any continuous 5 or 4 chars from Model No'
+                                  : `Allowed up to ${cap} scans for this row`)
+                        }
                         inputRef={(el) => (shdRefs.current[idx] = el)}
+                        disabled={remaining === 0} // disable when cap reached (NEW)
                       />
                     </Grid>
 
