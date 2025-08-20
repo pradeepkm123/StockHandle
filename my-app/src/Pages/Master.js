@@ -21,14 +21,33 @@ import axios from 'axios';
 const API_URL = 'https://stockhandle.onrender.com/api';
 const FILE_HOST = 'https://stockhandle.onrender.com';
 
+// --- safer URL builder (keeps only filename, normalizes slashes, encodes spaces etc.)
 const getImageUrl = (img) => {
   if (!img) return '/no-image.png';
   const file = String(img)
-    .replace(/\\/g, '/')            // windows -> web slashes
-    .replace(/^\/?uploads\/?/i, '') // strip leading "uploads/"
+    .replace(/\\/g, '/')
+    .replace(/^\/?uploads\/?/i, '')
     .split('/')
     .pop();
-  return `${FILE_HOST}/uploads/${file}`;
+  return `${FILE_HOST}/uploads/${encodeURIComponent(file)}`;
+};
+
+// --- tiny component that remembers if an image failed and locks to the fallback
+const ProductImage = ({ src, alt, style }) => {
+  const [failed, setFailed] = useState(false);
+  const finalSrc = failed ? '/no-image.png' : src;
+
+  return (
+    <img
+      src={finalSrc}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+      style={style}
+      draggable={false}
+    />
+  );
 };
 
 const Master = () => {
@@ -77,7 +96,6 @@ const Master = () => {
   };
 
   const handleChange = (_event, newValue) => setValue(newValue);
-
   const handleClickOpen = () => setOpen(true);
 
   const handleClose = () => {
@@ -120,24 +138,20 @@ const Master = () => {
 
       const payload = new FormData();
       Object.entries(updatedFormData).forEach(([key, value]) => {
-        // If productImage is a File, append file; if it's a string (existing), also append the string
         payload.append(key, value == null ? '' : value);
       });
 
       if (editMode) {
         if (formData.productImage && typeof formData.productImage !== 'string') {
-          // multipart when a new file is provided
           await axios.put(`${API_URL}/products/${editId}`, payload, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
         } else {
-          // JSON update when keeping the old image
           const jsonPayload = { ...formData, stockStatus: updatedFormData.stockStatus };
           await axios.put(`${API_URL}/products/${editId}`, jsonPayload);
         }
         enqueueSnackbar('Product updated successfully!', { variant: 'success' });
       } else {
-        // Always multipart for create
         await axios.post(`${API_URL}/products`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -168,7 +182,7 @@ const Master = () => {
       reorderLevel: product.reorderLevel ?? '',
       emailTo: product.emailTo || '',
       stockStatus: product.stockStatus || '',
-      productImage: product.productImage || null, // keep string to preview existing
+      productImage: product.productImage || null,
     });
     setOpen(true);
   };
@@ -258,38 +272,10 @@ const Master = () => {
                   Add Product
                 </Button>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    name="category"
-                    label="Category"
-                    variant="outlined"
-                    value={filters.category}
-                    onChange={handleFilterChange}
-                    size="small"
-                  />
-                  <TextField
-                    name="brand"
-                    label="Brand"
-                    variant="outlined"
-                    value={filters.brand}
-                    onChange={handleFilterChange}
-                    size="small"
-                  />
-                  <TextField
-                    name="model"
-                    label="Model"
-                    variant="outlined"
-                    value={filters.model}
-                    onChange={handleFilterChange}
-                    size="small"
-                  />
-                  <TextField
-                    name="subCategory"
-                    label="Sub Category"
-                    variant="outlined"
-                    value={filters.subCategory}
-                    onChange={handleFilterChange}
-                    size="small"
-                  />
+                  <TextField name="category" label="Category" variant="outlined" value={filters.category} onChange={handleFilterChange} size="small" />
+                  <TextField name="brand" label="Brand" variant="outlined" value={filters.brand} onChange={handleFilterChange} size="small" />
+                  <TextField name="model" label="Model" variant="outlined" value={filters.model} onChange={handleFilterChange} size="small" />
+                  <TextField name="subCategory" label="Sub Category" variant="outlined" value={filters.subCategory} onChange={handleFilterChange} size="small" />
                 </Box>
               </Box>
             </Box>
@@ -328,13 +314,9 @@ const Master = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                       <span style={getStatusStyle(product.stockStatus)}>{product.stockStatus || 'Unknown'}</span>
 
-                      <img
+                      <ProductImage
                         src={getImageUrl(product.productImage)}
                         alt="Product"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = '/no-image.png';
-                        }}
                         style={{
                           width: '45px',
                           height: '45px',
