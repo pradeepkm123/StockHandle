@@ -16,11 +16,12 @@ import {
   DialogTitle,
   Button,
   TablePagination,
+  TextField,
+  Box,
+  Typography,
 } from '@mui/material';
 import { Visibility, Delete } from '@mui/icons-material';
 import axios from 'axios';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
 
 function Invoice() {
   const [dispatches, setDispatches] = useState([]);
@@ -28,14 +29,18 @@ function Invoice() {
   const [selectedId, setSelectedId] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-
+  const [customerNameFilter, setCustomerNameFilter] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDispatches = async () => {
       try {
         const response = await axios.get('https://stockhandle.onrender.com/api/dispatch');
-        setDispatches(response.data);
+        // Sort by dispatchDate, newest first
+        const sortedDispatches = response.data.sort((a, b) =>
+          new Date(b.dispatchDate) - new Date(a.dispatchDate)
+        );
+        setDispatches(sortedDispatches);
       } catch (error) {
         console.error('Error fetching dispatches:', error);
       }
@@ -75,15 +80,44 @@ function Invoice() {
     setPage(0);
   };
 
+  const handleFilterChange = (event) => {
+    setCustomerNameFilter(event.target.value);
+    setPage(0); // Reset to first page when filter changes
+  };
+
+  // Filter and paginate dispatches
+  const filteredDispatches = dispatches.filter(dispatch =>
+    dispatch.customerName.toLowerCase().includes(customerNameFilter.toLowerCase())
+  );
+
   return (
     <div>
       <Box sx={{ mb: 4, mt: 4 }}>
         <Typography variant="h4" gutterBottom>
           Invoices
         </Typography>
-        <Typography variant="p">
+        <Typography variant="body1">
           Manage your stock invoices
         </Typography>
+      </Box>
+      <Box
+        sx={{
+          mb: 2,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          backgroundColor: '#fff',
+          padding: '20px',
+          borderRadius: '5px',
+          boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.1)',
+        }}
+      >
+        <TextField
+          label="Filter by Customer Name"
+          variant="outlined"
+          value={customerNameFilter}
+          onChange={handleFilterChange}
+          size="small"
+        />
       </Box>
       <TableContainer component={Paper}>
         <Table>
@@ -100,38 +134,47 @@ function Invoice() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {dispatches.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((dispatch) => (
-              <TableRow key={dispatch._id}>
-                <TableCell>{dispatch.invoiceNumber}</TableCell>
-                <TableCell>{dispatch.customerName}</TableCell>
-                <TableCell>{dispatch.price}</TableCell>
-                <TableCell>{dispatch.quantity}</TableCell>
-                <TableCell>{dispatch.salePerson}</TableCell>
-                <TableCell>{dispatch.barcodes.join(', ')}</TableCell>
-                <TableCell>{new Date(dispatch.dispatchDate).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => handleView(dispatch._id)}>
-                    <Visibility />
-                  </IconButton>
-                  <IconButton onClick={() => handleDelete(dispatch._id)}>
-                    <Delete />
-                  </IconButton>
+            {filteredDispatches.length > 0 ? (
+              filteredDispatches
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((dispatch) => (
+                  <TableRow key={dispatch._id}>
+                    <TableCell>{dispatch.invoiceNumber}</TableCell>
+                    <TableCell>{dispatch.customerName}</TableCell>
+                    <TableCell>{dispatch.price}</TableCell>
+                    <TableCell>{dispatch.quantity}</TableCell>
+                    <TableCell>{dispatch.salePerson}</TableCell>
+                    <TableCell>{dispatch.barcodes.join(', ')}</TableCell>
+                    <TableCell>{new Date(dispatch.dispatchDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <IconButton onClick={() => handleView(dispatch._id)}>
+                        <Visibility />
+                      </IconButton>
+                      <IconButton onClick={() => handleDelete(dispatch._id)}>
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  No records found
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={dispatches.length}
+          count={filteredDispatches.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </TableContainer>
-
       <Dialog
         open={open}
         onClose={handleClose}
