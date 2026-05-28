@@ -250,7 +250,7 @@ export default function MiniDrawer() {
       return menuItems.filter((item) => {
         const allowed = [
           'Store Home',
-          'Store Management',
+          // 'Store Management',
           'Transfer History',
           'StoreInward Details',
           'StoreCustomer',
