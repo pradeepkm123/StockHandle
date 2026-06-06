@@ -21,6 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Visibility, Delete } from '@mui/icons-material';
+import DescriptionIcon from '@mui/icons-material/Description';
 import axios from 'axios';
 
 function Invoice() {
@@ -148,11 +149,9 @@ function Invoice() {
                     <TableCell>{new Date(dispatch.dispatchDate).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <IconButton onClick={() => handleView(dispatch._id)}>
-                        <Visibility />
-                      </IconButton>
-                      <IconButton onClick={() => handleDelete(dispatch._id)}>
-                        <Delete />
-                      </IconButton>
+                        <DescriptionIcon/>
+                      </IconButton> 
+                      
                     </TableCell>
                   </TableRow>
                 ))
