@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowLeft, Package, TrendingUp, Triangle, Minus, Search, RotateCcw } from 'lucide-react';
 import PhoneIcon from '@mui/icons-material/Phone';
 import './InventoryDashboard.css';
@@ -8,6 +8,130 @@ import WarehouseIcon from '@mui/icons-material/Warehouse';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 const API = 'https://stockhandle-taxr.onrender.com/api';
+
+// Helper: Format currency
+const inr = (n) => `₹ ${Number(n || 0).toLocaleString('en-IN')}`;
+
+// Helper: Convert to number
+const num = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// Helper: Prefer the first valid number
+const preferNum = (...vals) => {
+  for (const v of vals) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+};
+
+// Helper: Normalize string
+const norm = (s) =>
+  (s ?? '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+// Helper: Tokenize string (commented out as it is unused)
+// const tokens = (s) =>
+//   norm(s)
+//     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+//     .split(' ')
+//     .filter(Boolean);
+
+// Helper: Calculate overlap score (commented out as it is unused)
+// const overlapScore = (a, b) => {
+//   const A = new Set(tokens(a));
+//   const B = new Set(tokens(b));
+//   if (A.size === 0 || B.size === 0) return 0;
+//   let inter = 0;
+//   for (const t of A) if (B.has(t)) inter++;
+//   return inter / Math.max(A.size, B.size);
+// };
+
+// Helper: Get quantity of an item
+const qtyOf = (it) => {
+  const candidates = ['quantity', 'qty', 'stock', 'availableQty', 'available', 'reorderQty'];
+  for (const k of candidates) {
+    const n = num(it?.[k]);
+    if (n) return n;
+  }
+  return 0;
+};
+
+// Helper: Match store names
+const matchesStore = (itemStoreName, selectedStoreName) => {
+  return norm(itemStoreName) === norm(selectedStoreName);
+};
+
+// Helper: Get transaction/record date
+const getRecordDate = (rec) => {
+  const raw = rec?.createdAt || rec?.updatedAt || rec?.date || rec?.dispatchDate;
+  const d = raw ? new Date(raw) : null;
+  return d && !isNaN(d.getTime()) ? d : null;
+};
+
+// Check if an inventory item belongs to a store (commented out as it is unused)
+// const belongsToStore = (inv, store) => {
+//   const sId = store?._id ? String(store._id) : null;
+//   const invIds = [
+//     inv.storeId,
+//     inv.customerId,
+//     inv.store?._id,
+//     inv.customer?._id,
+//   ]
+//     .filter(Boolean)
+//     .map((x) => String(x));
+//   if (sId && invIds.includes(sId)) return true;
+//   const invNames = [inv.storeName, inv.location, inv.customerName, inv.store?.name]
+//     .filter(Boolean)
+//     .map(norm);
+//   const storeNames = [store.storeName, store.address, store.customerName]
+//     .filter(Boolean)
+//     .map(norm);
+//   for (const a of invNames) {
+//     if (!a) continue;
+//     for (const b of storeNames) {
+//       if (a && b && a === b) return true;
+//     }
+//   }
+//   for (const a of invNames) {
+//     for (const b of storeNames) {
+//       if (overlapScore(a, b) >= 0.75) return true;
+//     }
+//   }
+//   for (const a of invNames) {
+//     for (const b of storeNames) {
+//       if (!a || !b) continue;
+//       if (a.includes(b) || b.includes(a)) return true;
+//     }
+//   }
+//   return false;
+// };
+
+// Aggregate data for a store (commented out as it is unused)
+// const aggregateForStore = (invRows, store) => {
+//   const seen = new Set();
+//   let totalPrice = 0;
+//   let productLines = 0;
+//   let lowStockAlerts = 0;
+//   for (const inv of invRows) {
+//     if (!belongsToStore(inv, store)) continue;
+//     const qty = qtyOf(inv);
+//     const price = preferNum(inv.mrp, inv.dealerPrice);
+//     totalPrice += price * qty;
+//     const modelKey = inv.modelNo || inv.model || inv._id || '';
+//     if (!seen.has(modelKey)) {
+//       seen.add(modelKey);
+//       productLines += 1;
+//     }
+//     if (qty > 0 && qty <= 5) lowStockAlerts += 1;
+//   }
+//   return { totalPrice, productLines, lowStockAlerts };
+// };
 
 const InventoryDashboard = () => {
   const [selectedStore, setSelectedStore] = useState(null);
@@ -36,71 +160,6 @@ const InventoryDashboard = () => {
   const [detailFromDate, setDetailFromDate] = useState('');
   const [detailToDate, setDetailToDate] = useState('');
 
-  // Helper: Format currency
-  const inr = (n) => `₹ ${Number(n || 0).toLocaleString('en-IN')}`;
-
-  // Helper: Convert to number
-  const num = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  // Helper: Prefer the first valid number
-  const preferNum = (...vals) => {
-    for (const v of vals) {
-      const n = Number(v);
-      if (Number.isFinite(n) && n > 0) return n;
-    }
-    return 0;
-  };
-
-  // Helper: Normalize string
-  const norm = (s) =>
-    (s ?? '')
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ');
-
-  // Helper: Tokenize string
-  const tokens = (s) =>
-    norm(s)
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .split(' ')
-      .filter(Boolean);
-
-  // Helper: Calculate overlap score
-  const overlapScore = (a, b) => {
-    const A = new Set(tokens(a));
-    const B = new Set(tokens(b));
-    if (A.size === 0 || B.size === 0) return 0;
-    let inter = 0;
-    for (const t of A) if (B.has(t)) inter++;
-    return inter / Math.max(A.size, B.size);
-  };
-
-  // Helper: Get quantity of an item
-  const qtyOf = (it) => {
-    const candidates = ['quantity', 'qty', 'stock', 'availableQty', 'available', 'reorderQty'];
-    for (const k of candidates) {
-      const n = num(it?.[k]);
-      if (n) return n;
-    }
-    return 0;
-  };
-
-  // Helper: Match store names
-  const matchesStore = (itemStoreName, selectedStoreName) => {
-    return norm(itemStoreName) === norm(selectedStoreName);
-  };
-
-  // Helper: Get transaction/record date
-  const getRecordDate = (rec) => {
-    const raw = rec?.createdAt || rec?.updatedAt || rec?.date || rec?.dispatchDate;
-    const d = raw ? new Date(raw) : null;
-    return d && !isNaN(d.getTime()) ? d : null;
-  };
-
   // Build a quick lookup map for product pricing by model
   const productsByModel = useMemo(() => {
     const map = {};
@@ -113,7 +172,7 @@ const InventoryDashboard = () => {
   }, [products]);
 
   // Resolve per-unit price for any row
-  const unitPriceOf = (it) => {
+  const unitPriceOf = useCallback((it) => {
     const perUnit = preferNum(
       it?._unitPrice,
       it?.unitPrice,
@@ -136,10 +195,10 @@ const InventoryDashboard = () => {
     const modelKey = (it?.modelNo || it?.model || '').toString().trim();
     const prod = productsByModel[modelKey];
     return preferNum(prod?.mrp, prod?.dealerPrice, 0);
-  };
+  }, [productsByModel]);
 
   // Calculate row value
-  const rowValue = (it) => {
+  const rowValue = useCallback((it) => {
     const total = preferNum(
       it?.value,
       it?.amount,
@@ -151,7 +210,7 @@ const InventoryDashboard = () => {
     );
     if (total) return total;
     return unitPriceOf(it) * qtyOf(it);
-  };
+  }, [unitPriceOf]);
 
   // Fetch initial data
   useEffect(() => {
@@ -177,65 +236,6 @@ const InventoryDashboard = () => {
     };
     fetchInitial();
   }, []);
-
-  // Check if an inventory item belongs to a store
-  const belongsToStore = (inv, store) => {
-    const sId = store?._id ? String(store._id) : null;
-    const invIds = [
-      inv.storeId,
-      inv.customerId,
-      inv.store?._id,
-      inv.customer?._id,
-    ]
-      .filter(Boolean)
-      .map((x) => String(x));
-    if (sId && invIds.includes(sId)) return true;
-    const invNames = [inv.storeName, inv.location, inv.customerName, inv.store?.name]
-      .filter(Boolean)
-      .map(norm);
-    const storeNames = [store.storeName, store.address, store.customerName]
-      .filter(Boolean)
-      .map(norm);
-    for (const a of invNames) {
-      if (!a) continue;
-      for (const b of storeNames) {
-        if (a && b && a === b) return true;
-      }
-    }
-    for (const a of invNames) {
-      for (const b of storeNames) {
-        if (overlapScore(a, b) >= 0.75) return true;
-      }
-    }
-    for (const a of invNames) {
-      for (const b of storeNames) {
-        if (!a || !b) continue;
-        if (a.includes(b) || b.includes(a)) return true;
-      }
-    }
-    return false;
-  };
-
-  // Aggregate data for a store
-  const aggregateForStore = (invRows, store) => {
-    const seen = new Set();
-    let totalPrice = 0;
-    let productLines = 0;
-    let lowStockAlerts = 0;
-    for (const inv of invRows) {
-      if (!belongsToStore(inv, store)) continue;
-      const qty = qtyOf(inv);
-      const price = preferNum(inv.mrp, inv.dealerPrice);
-      totalPrice += price * qty;
-      const modelKey = inv.modelNo || inv.model || inv._id || '';
-      if (!seen.has(modelKey)) {
-        seen.add(modelKey);
-        productLines += 1;
-      }
-      if (qty > 0 && qty <= 5) lowStockAlerts += 1;
-    }
-    return { totalPrice, productLines, lowStockAlerts };
-  };
 
   // Handle store click
   const handleStoreClick = async (store) => {
@@ -477,10 +477,10 @@ const InventoryDashboard = () => {
 
   // Store Card component
   const StoreCard = ({ store, inventoryRows }) => {
-    const agg = useMemo(
-      () => aggregateForStore(inventoryRows, store),
-      [inventoryRows, store]
-    );
+    // const agg = useMemo(
+    //   () => aggregateForStore(inventoryRows, store),
+    //   [inventoryRows, store]
+    // );
     const initials = (store.customerName || store.storeName || '?')
       .split(' ')
       .map((s) => s[0])
@@ -552,7 +552,7 @@ const InventoryDashboard = () => {
       return q > 0 && q <= 5;
     }).length;
     return { totalItems, totalPrice, productLines, lowStockAlerts };
-  }, [filteredDispatch, selectedStore]);
+  }, [filteredDispatch, selectedStore, rowValue]);
 
   const totalPages = Math.ceil(filteredDispatch.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
