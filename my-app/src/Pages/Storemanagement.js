@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Spinner from '../Components/Spinner';
 import { useUser } from './UserContext';
 import {
@@ -30,7 +30,7 @@ import { useSnackbar } from 'notistack';
 import axios from 'axios';
 // import Box from '@mui/material/Box';
 
-const FILE_HOST = 'https://stockhandle-taxr.onrender.com';
+// const FILE_HOST = 'https://stockhandle-taxr.onrender.com';
 const API_BASE = 'https://stockhandle-taxr.onrender.com/api';
 
 // Helper functions
@@ -49,22 +49,22 @@ const makeEmptyLine = () => ({
   owner: '',
 });
 
-const sanitize = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// const sanitize = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-const findModelMatchInBarcode = (model, barcode) => {
-  const m = sanitize(model);
-  const b = sanitize(barcode);
-  if (!m || !b) return null;
-  const lengths = [5, 4];
-  for (const L of lengths) {
-    if (m.length < L) continue;
-    for (let i = 0; i <= m.length - L; i++) {
-      const sub = m.slice(i, i + L);
-      if (b.includes(sub)) return sub;
-    }
-  }
-  return null;
-};
+// const findModelMatchInBarcode = (model, barcode) => {
+//   const m = sanitize(model);
+//   const b = sanitize(barcode);
+//   if (!m || !b) return null;
+//   const lengths = [5, 4];
+//   for (const L of lengths) {
+//     if (m.length < L) continue;
+//     for (let i = 0; i <= m.length - L; i++) {
+//       const sub = m.slice(i, i + L);
+//       if (b.includes(sub)) return sub;
+//     }
+//   }
+//   return null;
+// };
 
 const capForLine = (ln) => {
   const q = Number(ln.quantity);
@@ -116,7 +116,7 @@ const Storemanagement = () => {
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  // const [selectedProduct, setSelectedProduct] = useState(null);
   const [showOutwardDialog, setShowOutwardDialog] = useState(false);
   const [showInwardDialog, setShowInwardDialog] = useState(false);
   const [outwardError, setOutwardError] = useState('');
@@ -125,10 +125,10 @@ const Storemanagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
-  const [inwardFormData, setInwardFormData] = useState({ location: '' });
+  // const [inwardFormData, setInwardFormData] = useState({ location: '' });
   const [productList, setProductList] = useState([]);
-  const [locationOptions, setLocationOptions] = useState([]);
-  const [salePersons, setSalePersons] = useState([]);
+  // const [locationOptions, setLocationOptions] = useState([]);
+  // const [salePersons, setSalePersons] = useState([]);
   const [lines, setLines] = useState([makeEmptyLine()]);
   const [lineErrors, setLineErrors] = useState({});
   const [globalScanned, setGlobalScanned] = useState(new Set());
@@ -137,7 +137,7 @@ const Storemanagement = () => {
   const [subCategories, setSubCategories] = useState([]);
   const [tableCategoryFilter, setTableCategoryFilter] = useState('All');
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [mobileNumbers, setMobileNumbers] = useState([]);
+  // const [mobileNumbers, setMobileNumbers] = useState([]);
   const [customerNames, setCustomerNames] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [outwardFormData, setOutwardFormData] = useState({
@@ -156,6 +156,57 @@ const Storemanagement = () => {
   const scannerBuffers = useRef({});
   const scannerTimers = useRef({});
   const { enqueueSnackbar } = useSnackbar();
+
+  // Fetch products
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/products`);
+      setProductList(res.data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      enqueueSnackbar('Error fetching products!', { variant: 'error' });
+    }
+  }, [enqueueSnackbar]);
+
+  // Fetch locations (commented out as it is unused)
+  // const fetchLocations = useCallback(async () => {
+  //   try {
+  //     const res = await axios.get(`${API_BASE}/locations`);
+  //     setLocationOptions(res.data || []);
+  //   } catch (error) {
+  //     console.error('Error fetching locations:', error);
+  //     enqueueSnackbar('Error fetching locations!', { variant: 'error' });
+  //   }
+  // }, [enqueueSnackbar]);
+
+  // Fetch sale persons (commented out as it is unused)
+  // const fetchSalePersons = useCallback(async () => {
+  //   try {
+  //     const res = await axios.get(`${API_BASE}/salesPersons`);
+  //     setSalePersons(res.data || []);
+  //   } catch (error) {
+  //     console.error('Error fetching sales persons:', error);
+  //     enqueueSnackbar('Error fetching sales persons!', { variant: 'error' });
+  //   }
+  // }, [enqueueSnackbar]);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/categories`);
+      setCategories(response.data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  }, []);
+
+  const fetchSubCategories = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/subcategories`);
+      setSubCategories(response.data || []);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+    }
+  }, []);
 
   // Fetch inventory data
   useEffect(() => {
@@ -183,11 +234,11 @@ const Storemanagement = () => {
     };
     fetchInventoryData();
     fetchProducts();
-    fetchLocations();
-    fetchSalePersons();
+    // fetchLocations();
+    // fetchSalePersons();
     fetchCategories();
     fetchSubCategories();
-  }, [user?.role]);
+  }, [user?.role, fetchProducts, fetchCategories, fetchSubCategories]);
 
   // Fetch customer names
   useEffect(() => {
@@ -208,66 +259,15 @@ const Storemanagement = () => {
       }
     };
     fetchCustomerNames();
-  }, [user?.role]);
+  }, [user?.role, enqueueSnackbar]);
 
-  // Fetch mobile numbers
-  useEffect(() => {
-    if (filteredInventory.length > 0) {
-      const uniqueMobileNumbers = [...new Set(filteredInventory.map(item => item.customerMobile))].filter(Boolean);
-      setMobileNumbers(uniqueMobileNumbers);
-    }
-  }, [filteredInventory]);
-
-  // Fetch products
-  const fetchProducts = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/products`);
-      setProductList(res.data || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      enqueueSnackbar('Error fetching products!', { variant: 'error' });
-    }
-  };
-
-  // Fetch locations
-  const fetchLocations = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/locations`);
-      setLocationOptions(res.data || []);
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-      enqueueSnackbar('Error fetching locations!', { variant: 'error' });
-    }
-  };
-
-  // Fetch sale persons
-  const fetchSalePersons = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/salesPersons`);
-      setSalePersons(res.data || []);
-    } catch (error) {
-      console.error('Error fetching sales persons:', error);
-      enqueueSnackbar('Error fetching sales persons!', { variant: 'error' });
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const response = await axios.get(`${API_BASE}/categories`);
-      setCategories(response.data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchSubCategories = async () => {
-    try {
-      const response = await axios.get(`${API_BASE}/subcategories`);
-      setSubCategories(response.data || []);
-    } catch (error) {
-      console.error('Error fetching subcategories:', error);
-    }
-  };
+  // Fetch mobile numbers (commented out as it is unused)
+  // useEffect(() => {
+  //   if (filteredInventory.length > 0) {
+  //     const uniqueMobileNumbers = [...new Set(filteredInventory.map(item => item.customerMobile))].filter(Boolean);
+  //     setMobileNumbers(uniqueMobileNumbers);
+  //   }
+  // }, [filteredInventory]);
 
 
   // Status styling
@@ -499,7 +499,7 @@ const Storemanagement = () => {
       }
 
       if (repeatPrefix) {
-        const escapedPrefix = repeatPrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const escapedPrefix = repeatPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
         const regex = new RegExp(`(?=${escapedPrefix})`, 'i');
         const subSegs = seg.split(regex).map(s => s.trim()).filter(Boolean);
         finalCodes.push(...subSegs);
@@ -514,7 +514,7 @@ const Storemanagement = () => {
         }
         let subSegs = [seg];
         if (modelPrefix && seg.toLowerCase().indexOf(modelPrefix.toLowerCase()) !== seg.toLowerCase().lastIndexOf(modelPrefix.toLowerCase())) {
-          const regex = new RegExp(`(?=${modelPrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'i');
+          const regex = new RegExp(`(?=${modelPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'i');
           subSegs = seg.split(regex).map(s => s.trim()).filter(Boolean);
         } else if (/(?=([A-Z0-9]{2,4}-[A-Z0-9]{1,4}-))/i.test(seg)) {
           subSegs = seg.split(/(?=[A-Z0-9]{2,4}-[A-Z0-9]{1,4}-)/i).map(s => s.trim()).filter(Boolean);
@@ -717,8 +717,8 @@ const Storemanagement = () => {
 
         const qty = qtyForLine(ln);
         const product = productList.find((p) => p.model === ln.modelNo);
-        const updatedReorder = (product?.reorderLevel || 0) + qty;
-        const newStatus = statusForQty(updatedReorder);
+        // const updatedReorder = (product?.reorderLevel || 0) + qty;
+        // const newStatus = statusForQty(updatedReorder);
 
 
 
@@ -1279,7 +1279,7 @@ const Storemanagement = () => {
                         fullWidth
                         value={ln.quantity}
                         onChange={(e) => {
-                          const val = Number(e.target.value);
+                          // const val = Number(e.target.value);
                           setLineValue(idx, 'isQuantityManual', true);
                           setLineValue(idx, 'quantity', e.target.value);
                         }}
@@ -1498,7 +1498,7 @@ const Storemanagement = () => {
                         fullWidth
                         value={ln.quantity}
                         onChange={(e) => {
-                          const val = Number(e.target.value);
+                          // const val = Number(e.target.value);
                           setLineValue(idx, 'isQuantityManual', true);
                           setLineValue(idx, 'quantity', e.target.value);
                         }}
