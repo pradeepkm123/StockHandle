@@ -9,25 +9,18 @@ import {
   TableRow,
   Paper,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Button,
   TablePagination,
   TextField,
   Box,
   Typography,
 } from '@mui/material';
-import { Visibility, Delete } from '@mui/icons-material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import axios from 'axios';
 
 function Invoice() {
   const [dispatches, setDispatches] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  // const [open, setOpen] = useState(false);
+  // const [selectedId, setSelectedId] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [customerNameFilter, setCustomerNameFilter] = useState('');
@@ -53,24 +46,24 @@ function Invoice() {
     navigate(`/invoicedetails/${id}`);
   };
 
-  const handleDelete = async (id) => {
-    setSelectedId(id);
-    setOpen(true);
-  };
+  // const handleDelete = async (id) => {
+  //   setSelectedId(id);
+  //   setOpen(true);
+  // };
 
-  const handleClose = () => {
-    setOpen(false);
-  };
+  // const handleClose = () => {
+  //   setOpen(false);
+  // };
 
-  const handleConfirmDelete = async () => {
-    try {
-      await axios.delete(`https://stockhandle-taxr.onrender.com/api/dispatch/${selectedId}`);
-      setDispatches(dispatches.filter(dispatch => dispatch._id !== selectedId));
-    } catch (error) {
-      console.error('Error deleting dispatch:', error);
-    }
-    setOpen(false);
-  };
+  // const handleConfirmDelete = async () => {
+  //   try {
+  //     await axios.delete(`https://stockhandle-taxr.onrender.com/api/dispatch/${selectedId}`);
+  //     setDispatches(dispatches.filter(dispatch => dispatch._id !== selectedId));
+  //   } catch (error) {
+  //     console.error('Error deleting dispatch:', error);
+  //   }
+  //   setOpen(false);
+  // };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -174,6 +167,7 @@ function Invoice() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </TableContainer>
+      {/* Dialog (commented out as it is unused)
       <Dialog
         open={open}
         onClose={handleClose}
@@ -195,6 +189,7 @@ function Invoice() {
           </Button>
         </DialogActions>
       </Dialog>
+      */}
     </div>
   );
 }
