@@ -472,16 +472,8 @@
 
 // export default History;
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from './UserContext';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Button from '@mui/material/Button';
 import * as XLSX from 'xlsx';
 import Spinner from '../Components/Spinner';
 
@@ -497,30 +489,30 @@ function History() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedMovement, setSelectedMovement] = useState(null);
-  const [showBillModal, setShowBillModal] = useState(false);
-  const [customer, setCustomer] = useState(null);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
+  // const [selectedMovement, setSelectedMovement] = useState(null);
+  // const [showBillModal, setShowBillModal] = useState(false);
+  // const [customer, setCustomer] = useState(null);
+  // const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  // const [itemToDelete, setItemToDelete] = useState(null);
 
-  // Fetch customer by mobile number
-  const fetchCustomerByMobile = async (mobile) => {
-    try {
-      const response = await fetch(`${API_BASE}/customers?mobile=${mobile}`);
-      const data = await response.json();
-      if (data.length > 0) {
-        setCustomer(data[0]);
-      } else {
-        setCustomer(null);
-      }
-    } catch (error) {
-      console.error("Error fetching customer:", error);
-      setCustomer(null);
-    }
-  };
+  // Fetch customer by mobile number (commented out as it is unused)
+  // const fetchCustomerByMobile = async (mobile) => {
+  //   try {
+  //     const response = await fetch(`${API_BASE}/customers?mobile=${mobile}`);
+  //     const data = await response.json();
+  //     if (data.length > 0) {
+  //       setCustomer(data[0]);
+  //     } else {
+  //       setCustomer(null);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching customer:", error);
+  //     setCustomer(null);
+  //   }
+  // };
 
   // Fetch stock movements with pagination
-  const fetchStockMovements = async () => {
+  const fetchStockMovements = useCallback(async () => {
     try {
       setLoading(true);
       const storeParam = user?.role ? `&storeName=${user.role}` : '';
@@ -545,50 +537,50 @@ function History() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, currentPage, itemsPerPage]);
 
-  // Handle view button click
-  const handleView = async (movement) => {
-    setSelectedMovement(movement);
-    if (movement.customerMobile) {
-      await fetchCustomerByMobile(movement.customerMobile);
-    }
-    setShowBillModal(true);
-  };
+  // Handle view button click (commented out as it is unused)
+  // const handleView = async (movement) => {
+  //   setSelectedMovement(movement);
+  //   if (movement.customerMobile) {
+  //     await fetchCustomerByMobile(movement.customerMobile);
+  //   }
+  //   setShowBillModal(true);
+  // };
 
-  // Handle delete button click
-  const handleDelete = (id) => {
-    setItemToDelete(id);
-    setOpenDeleteDialog(true);
-  };
+  // Handle delete button click (commented out as it is unused)
+  // const handleDelete = (id) => {
+  //   setItemToDelete(id);
+  //   setOpenDeleteDialog(true);
+  // };
 
-  // Handle delete confirmation
-  const handleDeleteConfirm = (id) => {
-    fetch(`${API_BASE}/stock-outward/${id}`, {
-      method: 'DELETE',
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error('Failed to delete');
-        fetchStockMovements();
-      })
-      .catch((err) => {
-        setError(err.message);
-      });
-  };
+  // Handle delete confirmation (commented out as it is unused)
+  // const handleDeleteConfirm = (id) => {
+  //   fetch(`${API_BASE}/stock-outward/${id}`, {
+  //     method: 'DELETE',
+  //   })
+  //     .then((response) => {
+  //       if (!response.ok) throw new Error('Failed to delete');
+  //       fetchStockMovements();
+  //     })
+  //     .catch((err) => {
+  //       setError(err.message);
+  //     });
+  //   };
 
   // Download invoice as PDF
-  const downloadInvoiceAsPDF = () => {
-    const input = document.getElementById('invoice-content');
-    input.style.padding = '40px';
-    html2canvas(input, { scale: 2 }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`invoice_${selectedMovement._id}.pdf`);
-    });
-  };
+  // const downloadInvoiceAsPDF = () => {
+  //   const input = document.getElementById('invoice-content');
+  //   input.style.padding = '40px';
+  //   html2canvas(input, { scale: 2 }).then((canvas) => {
+  //     const imgData = canvas.toDataURL('image/png');
+  //     const pdf = new jsPDF('p', 'mm', 'a4');
+  //     const imgWidth = 210;
+  //     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  //     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+  //     pdf.save(`invoice_${selectedMovement._id}.pdf`);
+  //   });
+  // };
 
   // Export stock movements to Excel
   const handleExportExcel = async () => {
@@ -641,7 +633,7 @@ function History() {
   // Fetch stock movements when page or user role changes
   useEffect(() => {
     fetchStockMovements();
-  }, [user?.role, currentPage, itemsPerPage]);
+  }, [fetchStockMovements]);
 
   // Styles
   const styles = {
@@ -944,7 +936,7 @@ function History() {
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog (commented out as it is unused)
       <Dialog
         open={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}
@@ -975,8 +967,9 @@ function History() {
           </Button>
         </DialogActions>
       </Dialog>
+      */}
 
-      {/* Bill Modal */}
+      {/* Bill Modal (commented out as it is unused)
       {showBillModal && selectedMovement && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -1066,6 +1059,7 @@ function History() {
           </div>
         </div>
       )}
+      */}
     </div>
   );
 }
